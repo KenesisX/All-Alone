@@ -53,4 +53,4 @@ git remote add origin https://github.com/<you>/allalone.git
 git push -u origin main
 ```
 
-Built for Strikeback Tech LLC.
+Built for Strikebacktech
