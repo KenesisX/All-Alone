@@ -1,27 +1,56 @@
-# ALLALONE — Galaxy Watch / Wear OS companion
+# ALLALONE — multi-platform build kit
 
-`watch.html` is a round-screen companion: swipe (tap left/right half) between
-**Heading · GPS · SOS · Medical ID**. It's intentionally tiny and offline.
+One web app (`www/index.html`), three native targets. Each folder is a
+self-contained, build-ready project with its own README and exact commands.
 
-## Fastest: run it on the watch
-Modern Galaxy Watches run **Wear OS** with a browser. Host `watch.html`
-anywhere the watch can reach (even the ESP32 AP or your phone) and open it,
-or wrap it in a minimal Wear OS WebView app (below).
+| Target | Folder | Output | Build command |
+|--------|--------|--------|---------------|
+| Windows | `windows-electron/` | `.exe` installer + portable `.exe` | `npm install && npm run dist` |
+| Android | `android-capacitor/` | `.apk` / `.aab` | `npm install && npx cap add android && npx cap sync && npx cap open android` |
+| Raspberry Pi | `raspberrypi/` | kiosk (or `.img` via pi-gen) | `./install.sh && sudo reboot` |
 
-## Wrap as a real Wear OS app (Android Studio)
-1. New Project ▸ **Wear OS** ▸ Empty Activity.
-2. Add a full-screen `WebView` to the activity layout.
-3. In code: `webView.settings.javaScriptEnabled = true` and
-   `webView.loadUrl("file:///android_asset/watch.html")`.
-4. Put `watch.html` in `app/src/main/assets/`.
-5. Add permissions in the manifest: `INTERNET`, `ACCESS_FINE_LOCATION`,
-   `BODY_SENSORS`. Build ▸ APK, install to the watch.
+## Why source, not pre-built binaries
+Compiling a **signed** Windows `.exe`, an Android `.aab`, and a flashable
+Pi `.img` requires each platform's toolchain (electron-builder, Android
+SDK/Gradle, pi-gen) and **your own signing keys/keystore** — those have to
+run on your machines, not in a chat sandbox. These projects produce the
+exact binaries when you run the one command per platform.
 
-## Honest notes
-- A native **tile / complication** (the at-a-glance watch-face widget) needs
-  the Wear Tiles API in Kotlin — not doable from HTML. The WebView app above
-  gives you the full companion screen; tiles are a follow-on.
-- The Medical ID screen reads the same `sv_medid` the main app saves, but
-  **only if they share a browser/storage** (e.g. both opened on the watch).
-  For cross-device sync you'd point both at your bridge. On its own the watch
-  companion is standalone — re-enter Medical info on the watch if needed.
+## Single source of truth
+All three load the identical `www/index.html`. To ship an update, replace
+that one file in each target's `www/` and rebuild. (They're separate copies
+here so each folder is self-contained; symlink them if you prefer.)
+
+## Capability notes
+- **Camera / mic / motion / magnetometer / GPS / Web Audio** — work on all
+  three (served over a secure context: `file`-app on Electron, internal
+  `https://` on Capacitor, `localhost` on the Pi).
+- **WebUSB (RTL-SDR direct)** — works on Windows (Electron/Chromium) and
+  desktop Chrome; **not** in Android WebView. On Android use the WebSocket
+  SDR bridge (SOURCE page) or open the app in Chrome.
+- **Downloads** (photos/video/finds export) — Electron and the Pi use the
+  normal browser download; the Android WebView uses the same and lands in
+  Downloads. The claude.ai artifact build uses the platform download API.
+
+## Auto-build in the cloud (GitHub Actions)
+Push this repo to GitHub and the binaries build themselves — no local
+toolchain required:
+- `.github/workflows/windows.yml` → builds the Windows installer + portable
+  `.exe` on `windows-latest`, uploaded as the **ALLALONE-windows** artifact.
+- `.github/workflows/android.yml` → generates the Android project, patches
+  permissions + WebRTC, builds a debug **APK**, uploaded as
+  **ALLALONE-android-apk**.
+
+Both run on every push to `main`/`master` and can be run on demand from the
+**Actions** tab (Run workflow). Download the built files from the run's
+Artifacts section. A signed release `.aab` stays manual (needs your
+keystore) — the android workflow has a comment showing where to wire it in.
+
+```bash
+git init && git add . && git commit -m "ALLALONE build kit"
+git branch -M main
+git remote add origin https://github.com/<you>/allalone.git
+git push -u origin main
+```
+
+Built for Strikeback Tech LLC.
