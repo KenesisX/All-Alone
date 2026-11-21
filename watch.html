@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#000000">
+<title>ALLALONE Watch</title>
+<style>
+ :root{--red:#ff2a3a;--gold:#ffd54a}
+ *{box-sizing:border-box;margin:0;-webkit-tap-highlight-color:transparent}
+ html,body{height:100%;background:#000;color:#fff;font-family:ui-monospace,monospace;overflow:hidden}
+ #app{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:6% }
+ .screen{display:none;flex-direction:column;align-items:center;gap:6px;width:100%}
+ .screen.on{display:flex}
+ .big{font-size:15vw;font-weight:700;color:var(--red);line-height:1}
+ .lbl{font-size:3.4vw;color:#8a8a92;letter-spacing:1px}
+ .val{font-size:4.6vw;color:#fff}
+ button{font-family:inherit;color:#fff;background:#1b1b20;border:1px solid #333;border-radius:40px;
+   padding:3.2vw 5vw;font-size:3.8vw;cursor:pointer}
+ .sos{background:#c01020;border-color:#ff4a5a;color:#fff;font-weight:700}
+ .med{background:#3a2d00;border-color:var(--gold);color:var(--gold)}
+ #dots{position:fixed;bottom:4%;left:0;right:0;display:flex;gap:5px;justify-content:center}
+ #dots i{width:7px;height:7px;border-radius:50%;background:#444}
+ #dots i.on{background:var(--red)}
+ #nav{position:fixed;inset:0;display:flex}
+ #nav div{flex:1}
+ #out{font-size:3vw;color:#8a8a92;white-space:pre-wrap;max-height:40vh;overflow:auto}
+</style></head>
+<body>
+<div id="app">
+ <div class="screen on" id="s0">
+   <div class="lbl">HEADING</div><div class="big" id="hd">—</div><div class="val" id="card">tap to enable</div>
+ </div>
+ <div class="screen" id="s1">
+   <div class="lbl">POSITION</div><div class="val" id="pos">no GPS</div>
+   <div class="lbl" id="alt"></div><button id="locBtn">📍 Fix GPS</button>
+ </div>
+ <div class="screen" id="s2">
+   <button class="sos" id="sosBtn">🆘 SEND SOS</button><div id="out"></div>
+ </div>
+ <div class="screen" id="s3">
+   <div class="lbl">MEDICAL ID</div><div id="medOut" class="val" style="font-size:3.4vw">—</div>
+   <button class="med" id="medBtn">⚕ Refresh</button>
+ </div>
+</div>
+<div id="dots"><i class="on"></i><i></i><i></i><i></i></div>
+<div id="nav"><div id="navL"></div><div id="navR"></div></div>
+<script>
+const $=s=>document.querySelector(s);
+let scr=0;const screens=['s0','s1','s2','s3'];
+function show(n){scr=(n+screens.length)%screens.length;
+ screens.forEach((id,i)=>$('#'+id).classList.toggle('on',i===scr));
+ [...document.querySelectorAll('#dots i')].forEach((d,i)=>d.classList.toggle('on',i===scr));}
+$('#navR').onclick=()=>show(scr+1); $('#navL').onclick=()=>show(scr-1);
+
+// compass
+let heading=0;
+function onOrient(e){let h=e.webkitCompassHeading!=null?e.webkitCompassHeading:(e.alpha!=null?360-e.alpha:null);
+ if(h!=null){heading=((h%360)+360)%360;$('#hd').textContent=Math.round(heading)+'°';
+   $('#card').textContent=['N','NE','E','SE','S','SW','W','NW'][Math.round(heading/45)%8];}}
+async function enable(){try{if(DeviceOrientationEvent.requestPermission)await DeviceOrientationEvent.requestPermission();}catch(e){}
+ window.addEventListener('deviceorientationabsolute',onOrient);window.addEventListener('deviceorientation',onOrient);}
+$('#s0').onclick=enable;
+
+// gps
+let pos=null;
+function fix(){if(!navigator.geolocation)return;navigator.geolocation.getCurrentPosition(p=>{
+ pos={lat:p.coords.latitude,lon:p.coords.longitude,acc:p.coords.accuracy,alt:p.coords.altitude};
+ $('#pos').textContent=pos.lat.toFixed(4)+'\n'+pos.lon.toFixed(4);
+ $('#alt').textContent=(pos.alt!=null?Math.round(pos.alt)+' m · ':'')+'±'+Math.round(pos.acc)+'m';},
+ ()=>$('#pos').textContent='GPS denied',{enableHighAccuracy:true,timeout:9000});}
+$('#locBtn').onclick=fix;
+
+// sos
+$('#sosBtn').onclick=()=>{fix();const now=new Date();
+ const ll=pos?pos.lat.toFixed(5)+', '+pos.lon.toFixed(5):'locating…';
+ const map=pos?'https://maps.google.com/?q='+pos.lat+','+pos.lon:'';
+ const txt='🆘 SOS — NEED HELP\nLocation: '+ll+'\nTime: '+now.toLocaleString()+'\n'+map;
+ $('#out').textContent=txt;
+ if(navigator.share)navigator.share({title:'SOS',text:txt}).catch(()=>{location.href='sms:?&body='+encodeURIComponent(txt);});
+ else location.href='sms:?&body='+encodeURIComponent(txt);};
+
+// medical id (reads the same localStorage key as the main app on this device)
+function med(){let m={};try{m=JSON.parse(localStorage.getItem('sv_medid')||'{}');}catch(e){}
+ const parts=[];if(m.name)parts.push(m.name);if(m.blood)parts.push('Blood '+m.blood);
+ if(m.allergies)parts.push('Allergies: '+m.allergies);if(m.conditions)parts.push(m.conditions);
+ if(m.contacts&&m.contacts.length)parts.push('ICE: '+m.contacts.map(c=>c.name+' '+(c.phone||'')).join(', '));
+ $('#medOut').textContent=parts.length?parts.join('\n'):'No medical info saved on this device.';}
+$('#medBtn').onclick=med;med();
+</script>
+</body></html>

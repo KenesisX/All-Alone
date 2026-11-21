@@ -1,0 +1,40 @@
+{
+  "name": "allalone",
+  "version": "1.0.0",
+  "description": "ALLALONE — Sensor Command Suite",
+  "author": "Strikeback Tech LLC",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win",
+    "dist:portable": "electron-builder --win portable"
+  },
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "tech.strikeback.allalone",
+    "productName": "ALLALONE",
+    "files": [
+      "main.js",
+      "preload.js",
+      "www/**/*"
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true
+    }
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "appId": "tech.strikeback.allalone",
+  "appName": "ALLALONE",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  },
+  "android": {
+    "allowMixedContent": true
+  }
+}

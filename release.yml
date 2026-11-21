@@ -1,0 +1,98 @@
+name: Release (tag → binaries)
+
+on:
+  push:
+    tags: [ 'v*' ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: windows-electron
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm install
+      - run: npm run dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: windows-electron/dist/*.exe
+          if-no-files-found: error
+
+  android:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: android-capacitor
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm install
+      - run: npx cap add android
+      - run: python3 scripts/patch-android.py
+      - name: Configure signing (if keystore secret present)
+        env:
+          KS: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KSPW: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEYPW: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -z "$KS" ]; then
+            echo "No ANDROID_KEYSTORE_BASE64 secret — will build UNSIGNED debug APK."
+            echo "SIGNED=false" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          echo "$KS" | base64 -d > android/app/allalone.keystore
+          cat > android/key.properties <<EOF
+          storeFile=allalone.keystore
+          storePassword=$KSPW
+          keyAlias=$ALIAS
+          keyPassword=$KEYPW
+          EOF
+          python3 scripts/patch-signing.py
+          echo "SIGNED=true" >> "$GITHUB_ENV"
+      - run: npx cap sync android
+      - name: Build
+        run: |
+          chmod +x android/gradlew
+          cd android
+          if [ "$SIGNED" = "true" ]; then
+            ./gradlew bundleRelease assembleRelease --no-daemon
+          else
+            ./gradlew assembleDebug --no-daemon
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android
+          path: |
+            android-capacitor/android/app/build/outputs/apk/**/*.apk
+            android-capacitor/android/app/build/outputs/bundle/**/*.aab
+          if-no-files-found: warn
+
+  release:
+    needs: [ windows, android ]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Create GitHub Release with binaries
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/**/*
+          generate_release_notes: true
+          fail_on_unmatched_files: false

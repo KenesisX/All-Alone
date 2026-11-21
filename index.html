@@ -1,0 +1,2545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#000000">
+<title>ALLALONE // Sensor Command Suite</title>
+<style>
+  :root{
+    --bg:#000000; --bg2:#141418; --panel:rgba(22,22,26,.82); --char:#1b1b20; --grey:#8a8a92;
+    --grid:rgba(255,42,58,.12); --line:rgba(255,42,58,.30);
+    --cyan:#ff2a3a; --cyan2:#ffffff; --amber:#ffb020; --red:#ff2a3a;
+    --green:#ffffff; --violet:#ff5a6e; --txt:#ffffff; --dim:#8a8a92;
+    --mono:'SFMono-Regular',ui-monospace,'JetBrains Mono',Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--txt);
+    font-family:var(--mono);font-size:13px;letter-spacing:.3px;user-select:none}
+  body{background:
+    radial-gradient(130% 90% at 50% -10%,rgba(130,0,18,.24),transparent 60%),
+    radial-gradient(120% 120% at 100% 120%,rgba(90,0,12,.18),transparent 55%),
+    var(--bg);}
+  #app{position:fixed;inset:0;display:flex;flex-direction:column}
+
+  /* ===== top status bar ===== */
+  #topbar{height:34px;flex:0 0 34px;display:flex;align-items:center;gap:10px;
+    padding:0 10px;border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg,rgba(34,34,38,.35),transparent);backdrop-filter:blur(6px);z-index:40}
+  #brand{font-weight:700;color:var(--cyan);text-shadow:0 0 10px rgba(255,42,58,.5);
+    letter-spacing:2px;font-size:13px}
+  #brand b{color:#fff}
+  #armBtn{color:#ffd54a;border-color:#ffd54a;background:rgba(70,54,0,.45);box-shadow:0 0 8px rgba(255,200,40,.4);transition:.3s}
+  #armBtn.armed{color:#ff4df0;border-color:#ff4df0;background:rgba(74,0,66,.5);box-shadow:0 0 16px rgba(255,77,240,.8);animation:fxpulse 1.6s infinite}
+  @keyframes fxpulse{0%,100%{box-shadow:0 0 10px rgba(255,77,240,.5)}50%{box-shadow:0 0 22px rgba(255,77,240,1)}}
+  #lightscreen{position:fixed;inset:0;z-index:118;background:#fff;display:none}
+  #lightscreen.on{display:block}
+  .pill{font-size:10px;color:var(--dim);border:1px solid var(--line);border-radius:10px;
+    padding:2px 7px;white-space:nowrap}
+  .pill.on{color:var(--green);border-color:rgba(235,235,240,.5);text-shadow:0 0 6px rgba(235,235,240,.4)}
+  #topspace{flex:1}
+  #clock{color:var(--cyan2);font-size:11px}
+
+  /* ===== main stage + right rail ===== */
+  #body{flex:1;display:flex;min-height:0}
+  #stage{flex:1;position:relative;min-width:0;overflow:hidden}
+  .page{position:absolute;inset:0;display:none;flex-direction:column;overflow:hidden}
+  .page.active{display:flex;animation:fade .35s ease}
+  @keyframes fade{from{opacity:0;transform:scale(.995)}to{opacity:1}}
+
+  /* right scroll rail with cyber sprite icons */
+  #rail{flex:0 0 64px;border-left:1px solid var(--line);background:linear-gradient(180deg,var(--bg2),#0e0e12);
+    overflow-y:auto;overflow-x:hidden;scrollbar-width:none;z-index:30;
+    display:flex;flex-direction:column;align-items:center;padding:6px 0 60px}
+  #rail::-webkit-scrollbar{display:none}
+  .ric{width:52px;height:52px;margin:4px 0;border:1px solid transparent;border-radius:11px;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+    cursor:pointer;position:relative;transition:.18s;flex:0 0 auto}
+  .ric svg{width:24px;height:24px}
+  .rgrp{font-size:7px;color:var(--grey);letter-spacing:1.5px;margin:7px 0 1px;opacity:.7;width:100%;text-align:center;
+    border-top:1px solid rgba(255,42,58,.14);padding-top:5px}
+  .rgrp:first-child{border-top:0}
+  .ric .lbl{font-size:7.5px;color:var(--dim);letter-spacing:.5px;text-align:center;line-height:1}
+  .ric:hover{border-color:var(--line);background:rgba(255,42,58,.05)}
+  .ric.sel{border-color:var(--cyan);background:rgba(255,42,58,.10);box-shadow:0 0 14px rgba(255,42,58,.25) inset}
+  .ric.sel .lbl{color:var(--cyan)}
+  .ric.sel svg{filter:drop-shadow(0 0 5px rgba(255,42,58,.8))}
+  .stroke{stroke:var(--cyan);fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+  .fill{fill:var(--cyan)}
+
+  /* generic UI bits */
+  .hd{display:flex;align-items:center;gap:8px;padding:7px 11px;border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg,rgba(34,34,38,.3),transparent);flex:0 0 auto;z-index:5}
+  .hd h2{margin:0;font-size:13px;color:var(--cyan);letter-spacing:1.5px;text-transform:uppercase;
+    text-shadow:0 0 8px rgba(255,42,58,.4)}
+  .hd .sub{color:var(--dim);font-size:10px}
+  .hd .sp{flex:1}
+  .grow{flex:1;min-height:0;position:relative}
+  canvas{display:block;width:100%;height:100%}
+  .ctrls{flex:0 0 auto;display:flex;flex-wrap:wrap;gap:6px;padding:8px 10px;border-top:1px solid var(--line);
+    background:rgba(12,12,14,.6);align-items:center;max-height:44%;overflow-y:auto;scrollbar-width:thin}
+  .btn{font-family:var(--mono);font-size:11px;color:var(--txt);background:rgba(34,34,38,.4);
+    border:1px solid var(--line);border-radius:7px;padding:6px 10px;cursor:pointer;transition:.15s;white-space:nowrap}
+  .btn:hover{border-color:var(--cyan);color:#fff}
+  .btn.on{background:rgba(255,42,58,.16);border-color:var(--cyan);color:var(--cyan);
+    box-shadow:0 0 10px rgba(255,42,58,.3)}
+  .btn.danger.on{background:rgba(255,59,82,.18);border-color:var(--red);color:var(--red);box-shadow:0 0 12px rgba(255,59,82,.4)}
+  .chip{font-size:10px;color:var(--dim);border:1px solid var(--line);border-radius:6px;padding:4px 8px}
+  .chip b{color:var(--cyan2)}
+  label.sl{display:flex;align-items:center;gap:7px;font-size:10px;color:var(--dim);min-width:150px}
+  input[type=range]{-webkit-appearance:none;appearance:none;height:4px;border-radius:4px;flex:1;
+    background:linear-gradient(90deg,var(--cyan),var(--violet));outline:none}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;height:15px;border-radius:50%;
+    background:#0e0e12;border:2px solid var(--cyan);box-shadow:0 0 8px var(--cyan);cursor:pointer}
+  select,input[type=text],input[type=number]{font-family:var(--mono);font-size:11px;color:var(--txt);
+    background:rgba(24,24,28,.7);border:1px solid var(--line);border-radius:6px;padding:5px 7px}
+
+  /* readout HUD */
+  .hud{position:absolute;pointer-events:none;font-size:10px;color:var(--cyan);z-index:6;
+    text-shadow:0 0 6px rgba(0,0,0,.9)}
+  .scan-corners::before,.scan-corners::after{content:'';position:absolute;width:26px;height:26px;
+    border:2px solid var(--cyan);pointer-events:none;opacity:.6}
+  .scan-corners::before{top:8px;left:8px;border-right:0;border-bottom:0}
+  .scan-corners::after{bottom:54px;right:8px;border-left:0;border-top:0}
+
+  /* point-click info popup */
+  #pop{position:absolute;z-index:60;min-width:168px;max-width:230px;background:rgba(3,14,18,.95);
+    border:1px solid var(--cyan);border-radius:10px;padding:10px;display:none;
+    box-shadow:0 0 24px rgba(0,0,0,.7),0 0 18px rgba(255,42,58,.25);backdrop-filter:blur(4px)}
+  #pop h4{margin:0 0 6px;color:var(--cyan);font-size:11px;letter-spacing:1px;display:flex;justify-content:space-between}
+  #pop .x{cursor:pointer;color:var(--red);font-weight:700}
+  #pop .row{display:flex;justify-content:space-between;font-size:10px;color:var(--dim);margin:3px 0}
+  #pop .row b{color:var(--txt)}
+  #pop input{width:100%;margin-top:6px}
+  #pop .act{margin-top:7px;width:100%;text-align:center}
+
+  table{width:100%;border-collapse:collapse;font-size:10px}
+  th,td{text-align:left;padding:4px 7px;border-bottom:1px solid rgba(255,42,58,.08);white-space:nowrap}
+  th{color:var(--cyan);position:sticky;top:0;background:#141418;z-index:2}
+  td b{color:var(--txt)}
+  .sig{color:var(--green)} .sigw{color:var(--amber)} .sigb{color:var(--red)}
+  .scroll{overflow:auto;scrollbar-width:thin}
+
+  #toast{position:fixed;bottom:12px;left:50%;transform:translateX(-50%);z-index:90;
+    background:rgba(3,16,20,.95);border:1px solid var(--cyan);border-radius:9px;padding:9px 14px;
+    font-size:11px;color:var(--cyan);display:none;box-shadow:0 0 20px rgba(255,42,58,.3);max-width:86%}
+  #flash{position:fixed;inset:0;z-index:95;background:#fff;opacity:0;pointer-events:none}
+  .mini{position:absolute;left:8px;bottom:52px;font-size:9px;color:var(--dim);z-index:6;pointer-events:none;
+    background:rgba(0,0,0,.35);padding:3px 6px;border-radius:5px;border:1px solid rgba(255,42,58,.12)}
+  video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+  .bcard{background:var(--char);border:1px solid var(--line);border-radius:10px;padding:10px}
+  .btitle{color:var(--red);font-size:11px;letter-spacing:1px;text-transform:uppercase;margin-bottom:7px}
+  .brow{display:flex;gap:6px;margin:5px 0;flex-wrap:wrap;align-items:center}
+  .brow input[type=text],.brow input[type=number]{flex:1;min-width:120px}
+  .bnote{font-size:10px;color:var(--grey);line-height:1.5;margin-top:5px}
+  .proto{margin:0;font-size:9.5px;color:var(--grey);white-space:pre-wrap;line-height:1.45}
+  .warn{color:var(--amber)}
+  .no{color:var(--red)}
+  .legend{position:absolute;right:8px;top:8px;font-size:9px;color:var(--dim);z-index:6;text-align:right;
+    background:rgba(0,0,0,.3);padding:4px 7px;border-radius:5px;border:1px solid rgba(255,42,58,.12)}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="topbar">
+    <div id="brand">ALL<b>ALONE</b></div>
+    <button id="medBtn" title="Medical ID">⚕ MED&nbsp;ID</button>
+    <button id="helpBtn" title="How to use this page">?</button>
+    <span class="pill" id="pCam">CAM ○</span>
+    <span class="pill" id="pMic">MIC ○</span>
+    <span class="pill" id="pImu">IMU ○</span>
+    <span class="pill" id="pMag">MAG ○</span>
+    <button class="btn" id="armBtn" style="padding:3px 9px;font-size:10px">◉ ARM ALL</button>
+    <div id="topspace"></div>
+    <span class="pill" id="pFreq">f: 2.437 GHz</span>
+    <span id="clock">--:--:--</span>
+  </div>
+  <div id="body">
+    <div id="stage"><!-- pages injected --></div>
+    <div id="rail"><!-- icons injected --></div>
+  </div>
+</div>
+<div id="pop"></div>
+<div id="toast"></div>
+<div id="flash"></div>
+<div id="lightscreen"></div>
+
+<script>
+"use strict";
+/* ============================================================
+   ALLALONE — real device-sensor instrument suite
+   Vanilla JS. One file. Everything runs on the phone's own
+   camera / mic / IMU / magnetometer + Web Audio.
+   ============================================================ */
+
+const $=(s,r=document)=>r.querySelector(s);
+const el=(t,c,h)=>{const e=document.createElement(t);if(c)e.className=c;if(h!=null)e.innerHTML=h;return e;};
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+const rnd=(a,b)=>a+Math.random()*(b-a);
+const fmt=(n,d=2)=>Number(n).toFixed(d);
+const stage=$('#stage'), rail=$('#rail');
+
+/* shared live state ------------------------------------------------ */
+const S={
+  freqHz:2.437e9,          // "present value being scanned"
+  running:true,
+  audioReady:false, analyser:null, freqData:null, timeData:null, audioCtx:null,
+  micLevel:0, micPeak:0, bands:new Array(64).fill(0),
+  imu:{ax:0,ay:0,az:0, mag:0, vib:0, hist:new Array(256).fill(0)},
+  heading:0, headingOK:false,
+  camStream:null, camFacing:'environment',
+  blips:[],                // radar contacts
+  devices:[],              // simulated SDR/MAC table
+  csi:{subc:new Array(64).fill(0), presence:0, rate:0, phase:0},
+};
+
+/* toast ------------------------------------------------------------ */
+let toT;
+function toast(msg,ms=2600){const t=$('#toast');t.innerHTML=msg;t.style.display='block';
+  clearTimeout(toT);toT=setTimeout(()=>t.style.display='none',ms);}
+
+/* clock + freq pill ------------------------------------------------ */
+setInterval(()=>{const d=new Date();
+  $('#clock').textContent=d.toLocaleTimeString('en-GB');},1000);
+function freqLabel(hz){
+  if(hz>=1e9)return fmt(hz/1e9,3)+' GHz';
+  if(hz>=1e6)return fmt(hz/1e6,3)+' MHz';
+  if(hz>=1e3)return fmt(hz/1e3,2)+' kHz';
+  return fmt(hz,0)+' Hz';}
+function setFreq(hz){S.freqHz=hz;$('#pFreq').textContent='f: '+freqLabel(hz);
+  window.dispatchEvent(new Event('freqchange'));}
+
+/* ================= SENSOR ACQUISITION ============================ */
+async function initAudio(existing){
+  if(S.audioReady===true)return true;
+  try{
+    const ctx=new (window.AudioContext||window.webkitAudioContext)();
+    if(ctx.state==='suspended')try{await ctx.resume();}catch(e){}
+    let stream=(existing&&existing.getAudioTracks&&existing.getAudioTracks().length)?existing:null;
+    if(!stream)stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});
+    const src=ctx.createMediaStreamSource(stream);
+    const an=ctx.createAnalyser();an.fftSize=2048;an.smoothingTimeConstant=.72;src.connect(an);
+    S.audioCtx=ctx;S.analyser=an;S.micStream=stream;
+    S.freqData=new Uint8Array(an.frequencyBinCount);
+    S.timeData=new Uint8Array(an.fftSize);
+    S.audioReady=true;$('#pMic').className='pill on';$('#pMic').textContent='MIC ●';
+    return true;
+  }catch(e){toast('<span class="no">Mic blocked</span> — demo signal active');
+    S.audioReady='demo';return false;}
+}
+function pollAudio(){
+  if(S.bridgeLive&&performance.now()-S.bridgeTS<1500){ // live SDR feed drives the spectrum
+    let s=0;for(const b of S.bands)s+=b;S.micLevel=clamp(s/S.bands.length,0,1);S.micPeak=clamp(S.micLevel*1.6,0,1);return;}
+  if(S.audioReady===true&&S.analyser){
+    S.analyser.getByteFrequencyData(S.freqData);
+    S.analyser.getByteTimeDomainData(S.timeData);
+    let sum=0,peak=0;for(let i=0;i<S.freqData.length;i++){const v=S.freqData[i];sum+=v;if(v>peak)peak=v;}
+    S.micLevel=sum/S.freqData.length/255;S.micPeak=peak/255;
+    const bn=S.bands.length,step=(S.freqData.length/bn)|0;
+    for(let b=0;b<bn;b++){let m=0;for(let i=0;i<step;i++)m=Math.max(m,S.freqData[b*step+i]);
+      S.bands[b]=S.bands[b]*.4+(m/255)*.6;}
+  }else{ // demo synthesized spectrum
+    const t=performance.now()/1000;
+    for(let b=0;b<S.bands.length;b++){
+      const base=Math.exp(-b/22)*.6, w=(Math.sin(t*2+b*.4)*.5+.5);
+      S.bands[b]=clamp(base*w + Math.random()*.08 + (b===((t*4)%S.bands.length|0)?.5:0),0,1);}
+    S.micLevel=.18+Math.sin(t*3)*.12+Math.random()*.05;S.micPeak=clamp(S.micLevel*2,0,1);
+  }
+}
+
+function camError(e){const n=(e&&e.name)||'';
+  if(n==='NotAllowedError'||n==='SecurityError')
+    toast('<span class="no">Camera blocked.</span> Open this artifact full-screen (↗ in a new tab) and allow camera when prompted.',7000);
+  else if(n==='NotFoundError')toast('<span class="no">No camera found</span> on this device.',5000);
+  else if(n==='NotReadableError')toast('<span class="no">Camera busy</span> — close other apps using it.',5000);
+  else toast('<span class="no">Camera error:</span> '+(n||(e&&e.message)||'unknown'),5000);}
+function camVideoConstraint(){ // use chosen webcam/device if set, else front/back
+  return S.camDeviceId ? {deviceId:{exact:S.camDeviceId},width:{ideal:1280},height:{ideal:720}}
+                       : {facingMode:{ideal:S.camFacing},width:{ideal:1280},height:{ideal:720}};
+}
+async function populateCams(sel){ // list every connected camera (webcam, USB, phone)
+  if(!sel||!navigator.mediaDevices||!navigator.mediaDevices.enumerateDevices)return;
+  try{const devs=await navigator.mediaDevices.enumerateDevices();
+    const cams=devs.filter(d=>d.kind==='videoinput');
+    sel.innerHTML='<option value="">Auto (front/back)</option>'+cams.map((c,i)=>`<option value="${c.deviceId}">${(c.label||('Camera '+(i+1))).replace(/[<>]/g,'')}</option>`).join('');
+    sel.value=S.camDeviceId||'';
+  }catch(e){}
+}
+async function startCam(){
+  if(!S.vidEl)return false;
+  try{
+    if(S.camStream)S.camStream.getTracks().forEach(t=>{if(t.kind==='video')t.stop();});
+    const st=await navigator.mediaDevices.getUserMedia({video:camVideoConstraint(),audio:false});
+    S.camStream=st;S.vidEl.srcObject=st;S.vidEl.setAttribute('playsinline','');
+    await S.vidEl.play().catch(()=>{});
+    S.camRunning=true;$('#pCam').className='pill on';$('#pCam').textContent='CAM ●';
+    if(S.camSelEl)populateCams(S.camSelEl);
+    if(S.onCamChange)S.onCamChange(true);return true;
+  }catch(e){S.camRunning=false;$('#pCam').className='pill';$('#pCam').textContent='CAM ✕';
+    camError(e);if(S.onCamChange)S.onCamChange(false);return false;}
+}
+async function flipCam(){S.camDeviceId=null;S.camFacing=S.camFacing==='environment'?'user':'environment';if(S.camRunning)await startCam();}
+
+function initMotion(){
+  function onMotion(e){
+    const a=e.accelerationIncludingGravity||e.acceleration;if(!a)return;
+    S.imu.ax=a.x||0;S.imu.ay=a.y||0;S.imu.az=a.z||0;
+    const m=Math.hypot(S.imu.ax,S.imu.ay,S.imu.az);
+    S.imu.vib=Math.abs(m-(S.imu.mag||m));S.imu.mag=m;
+    S.imu.hist.push(S.imu.vib);if(S.imu.hist.length>256)S.imu.hist.shift();
+    $('#pImu').className='pill on';$('#pImu').textContent='IMU ●';
+  }
+  function onOrient(e){
+    let h=e.webkitCompassHeading!=null?e.webkitCompassHeading:(e.alpha!=null?360-e.alpha:null);
+    if(h!=null){S.heading=h;S.headingOK=true;
+      $('#pMag').className='pill on';$('#pMag').textContent='MAG ●';}
+    if(e.beta!=null)S.pitch=e.beta;    // front-back tilt (sky view + compass perspective)
+    if(e.gamma!=null)S.roll=e.gamma;   // left-right tilt
+  }
+  window.addEventListener('devicemotion',onMotion);
+  window.addEventListener('deviceorientationabsolute',onOrient);
+  window.addEventListener('deviceorientation',onOrient);
+}
+// ONE arming flow — requests motion/orientation, then camera+mic in a single prompt
+async function armAll(){
+  armed=true;
+  try{ if(typeof DeviceMotionEvent!=='undefined'&&DeviceMotionEvent.requestPermission)
+    await DeviceMotionEvent.requestPermission(); }catch(e){}
+  try{ if(typeof DeviceOrientationEvent!=='undefined'&&DeviceOrientationEvent.requestPermission)
+    await DeviceOrientationEvent.requestPermission(); }catch(e){}
+  initMotion();
+  try{
+    const st=await navigator.mediaDevices.getUserMedia({
+      video:camVideoConstraint(),
+      audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});
+    S.camStream=st;
+    if(S.vidEl){S.vidEl.srcObject=st;S.vidEl.setAttribute('playsinline','');await S.vidEl.play().catch(()=>{});}
+    S.camRunning=true;$('#pCam').className='pill on';$('#pCam').textContent='CAM ●';
+    if(S.camSelEl)populateCams(S.camSelEl);
+    if(S.onCamChange)S.onCamChange(true);
+    await initAudio(st);                 // reuse same stream's audio for the FFT
+    loadWeather();
+    toast('Armed · camera + mic + motion + compass online',3200);
+  }catch(e){
+    camError(e);                          // camera blocked — still bring up mic + motion
+    await initAudio();
+    if(S.onCamChange)S.onCamChange(false);
+  }
+}
+const requestSensors=armAll;              // alias for older call sites
+
+/* simulated SDR / device survey (browsers cannot scan RF/WiFi) ----- */
+const VENDORS=['Espressif','Raspberry Pi','Ubiquiti','Hikvision','Axis','Cisco','TP-Link','Unknown','Shelly','Dahua'];
+function seedDevices(){
+  S.devices=[];
+  for(let i=0;i<9;i++){
+    const mac=Array.from({length:6},()=>('0'+(Math.random()*256|0).toString(16)).slice(-2)).join(':').toUpperCase();
+    S.devices.push({mac,
+      rssi:-(30+Math.random()*65|0),
+      ch:[1,6,11,36,40,44][Math.random()*6|0],
+      band:Math.random()<.6?'2.4G':'5G',
+      vendor:VENDORS[Math.random()*VENDORS.length|0],
+      type:['WiFi-AP','WiFi-STA','BLE','Zigbee','Sub-GHz'][Math.random()*5|0],
+      ang:Math.random()*360, r:.3+Math.random()*.65, drift:rnd(-.3,.3)});}
+}
+// slow RSSI wobble + table churn
+function evolveDevices(){ for(const d of S.devices) d.rssi=clamp(d.rssi+rnd(-2,2),-99,-25); }
+// real-time kinematics: objects sit STATIC, then burst into MOVING and get tracked live
+let _lastK=performance.now();
+function updateMotion(){
+  const now=performance.now(), dt=Math.min(120,now-_lastK)/1000; _lastK=now;
+  for(const d of S.devices){
+    if(d.moving===undefined){d.moving=false;d.still=99;d.speed=0;d.trail=[];
+      d.tAng=d.ang;d.tR=d.r;d.moveUntil=0;d.px=d.ang;d.pr=d.r;}
+    // Demo device emitters stay perfectly STATIC — no fabricated jitter.
+    // Only real bridge-fed devices change position, so only genuine movement reads as moving.
+    // measure displacement → motion state (real for ext; always ~0 for demo)
+    let da=d.ang-d.px; while(da>180)da-=360; while(da<-180)da+=360;
+    const dr=d.r-d.pr;
+    d.speed=(Math.abs(da)+Math.abs(dr)*80)/Math.max(dt,.001)*0.016;
+    d.px=d.ang; d.pr=d.r;
+    if(d.speed>0.55){ d.moving=true; d.still=0;
+      d.trail.push({a:d.ang*Math.PI/180,r:d.r}); if(d.trail.length>42)d.trail.shift(); }
+    else { d.still++; if(d.still>10){ d.moving=false; if(d.trail.length)d.trail.shift(); } }
+  }
+}
+seedDevices();setInterval(evolveDevices,1400);setInterval(updateMotion,45);
+
+/* ================= POINT & CLICK INFO POPUP ====================== */
+const pop=$('#pop');
+function showPop(x,y,title,rows,freqEditable=true){
+  let html=`<h4>${title}<span class="x">✕</span></h4>`;
+  for(const[k,v] of rows)html+=`<div class="row"><span>${k}</span><b>${v}</b></div>`;
+  if(freqEditable){
+    html+=`<div class="row" style="margin-top:6px"><span>SCAN FREQ</span><b id="pf">${freqLabel(S.freqHz)}</b></div>`;
+    html+=`<input id="pfr" type="range" min="6" max="9.8" step="0.001" value="${Math.log10(S.freqHz)}">`;
+    html+=`<button class="btn act" id="pset">◎ SET AS ACTIVE SCAN</button>`;
+  }
+  pop.innerHTML=html;pop.style.display='block';
+  const pw=pop.offsetWidth,ph=pop.offsetHeight;
+  pop.style.left=clamp(x-pw/2,6,innerWidth-pw-6)+'px';
+  pop.style.top=clamp(y-ph-14,40,innerHeight-ph-6)+'px';
+  pop.querySelector('.x').onclick=()=>pop.style.display='none';
+  const fr=pop.querySelector('#pfr');
+  if(fr){fr.oninput=()=>{const hz=Math.pow(10,+fr.value);pop.querySelector('#pf').textContent=freqLabel(hz);};
+    pop.querySelector('#pset').onclick=()=>{setFreq(Math.pow(10,+fr.value));
+      toast('Active scan → '+freqLabel(S.freqHz));pop.style.display='none';};}
+}
+document.addEventListener('pointerdown',e=>{if(pop.style.display==='block'&&!pop.contains(e.target)&&!e.target.closest('[data-pt]'))pop.style.display='none';});
+
+/* ================= PAGE FRAMEWORK ================================= */
+const PAGES=[];
+function definePage(id,label,icon,build){PAGES.push({id,label,icon,build,el:null,draw:null});}
+
+/* ---- cyber sprite icons (inline SVG) ---- */
+const IC={
+radar:`<svg viewBox="0 0 24 24"><circle class="stroke" cx="12" cy="12" r="9"/><circle class="stroke" cx="12" cy="12" r="5" opacity=".6"/><path class="stroke" d="M12 12 L20 7"/><circle class="fill" cx="18" cy="9" r="1.4"/></svg>`,
+cam:`<svg viewBox="0 0 24 24"><rect class="stroke" x="3" y="6" width="18" height="13" rx="2"/><circle class="stroke" cx="12" cy="12.5" r="3.4"/><path class="stroke" d="M8 6l1.5-2h5L16 6"/></svg>`,
+water:`<svg viewBox="0 0 24 24"><path class="stroke" d="M3 5h18M3 9h18M3 13h18M3 17h18M3 21h18" opacity=".8"/><path class="fill" d="M6 5h3v16H6zM13 5h2v16h-2zM17 5h2v16h-2z" opacity=".35"/></svg>`,
+scatter:`<svg viewBox="0 0 24 24"><path class="stroke" d="M4 20V4M4 20h16"/><circle class="fill" cx="8" cy="14" r="1.3"/><circle class="fill" cx="12" cy="9" r="1.3"/><circle class="fill" cx="15" cy="15" r="1.3"/><circle class="fill" cx="18" cy="7" r="1.3"/><circle class="fill" cx="10" cy="16" r="1.3"/></svg>`,
+compass:`<svg viewBox="0 0 24 24"><circle class="stroke" cx="12" cy="12" r="9"/><path class="fill" d="M12 5l2.4 6.6L12 19l-2.4-7.4z" opacity=".9"/></svg>`,
+sonar:`<svg viewBox="0 0 24 24"><circle class="fill" cx="12" cy="12" r="2"/><circle class="stroke" cx="12" cy="12" r="5" opacity=".7"/><circle class="stroke" cx="12" cy="12" r="8.5" opacity=".4"/></svg>`,
+heat:`<svg viewBox="0 0 24 24"><rect class="stroke" x="3" y="3" width="18" height="18" rx="2"/><rect class="fill" x="6" y="12" width="4" height="4" opacity=".9"/><rect class="fill" x="11" y="7" width="4" height="4" opacity=".6"/><rect class="fill" x="14" y="13" width="4" height="4" opacity=".4"/></svg>`,
+mesh:`<svg viewBox="0 0 24 24"><circle class="fill" cx="5" cy="6" r="1.7"/><circle class="fill" cx="19" cy="7" r="1.7"/><circle class="fill" cx="12" cy="18" r="1.7"/><circle class="fill" cx="12" cy="9" r="1.7"/><path class="stroke" d="M5 6l7 3M19 7l-7 2M12 9v9"/></svg>`,
+csi:`<svg viewBox="0 0 24 24"><path class="stroke" d="M3 12c2-6 4-6 6 0s4 6 6 0 4-6 6 0"/><path class="stroke" d="M3 18c2-4 4-4 6 0s4 4 6 0 4-4 6 0" opacity=".5"/></svg>`,
+uv:`<svg viewBox="0 0 24 24"><circle class="stroke" cx="12" cy="12" r="8"/><path class="fill" d="M8 9l2 6 2-6M14 9v4a2 2 0 004 0V9" opacity=".9" stroke="none"/><path class="stroke" d="M8 9l2 6 2-6M14 9v4a2 2 0 004 0V9"/></svg>`,
+sound:`<svg viewBox="0 0 24 24"><path class="fill" d="M4 9h3l5-4v14l-5-4H4z"/><path class="stroke" d="M15 8a5 5 0 010 8M17.5 5.5a9 9 0 010 13"/></svg>`,
+gen:`<svg viewBox="0 0 24 24"><path class="stroke" d="M3 12h3l2-7 4 14 2-7h7"/></svg>`,
+burst:`<svg viewBox="0 0 24 24"><path class="fill" d="M12 2l2 7 7 2-7 2-2 7-2-7-7-2 7-2z" opacity=".9"/></svg>`,
+emf:`<svg viewBox="0 0 24 24"><circle class="fill" cx="12" cy="12" r="2"/><path class="stroke" d="M8 8a5.6 5.6 0 000 8M6 6a8.5 8.5 0 000 12M16 8a5.6 5.6 0 010 8M18 6a8.5 8.5 0 010 12"/></svg>`,
+};
+
+/* ================================================================
+   PAGE 1 — RADAR  (half-screen sweep + filter bank below)
+   ================================================================ */
+definePage('radar','RADAR',IC.radar,(p)=>{
+  p.innerHTML=`
+   <div class="hd"><h2>CSI Radar</h2><span class="sub">continuous sweep · tap contacts</span>
+     <div class="sp"></div><span class="chip">CONTACTS <b id="rn">0</b></span></div>
+   <div class="grow scan-corners"><canvas id="rc" data-pt="radar"></canvas>
+     <div class="legend">● motion&nbsp;&nbsp;▲ device<br>sweep 36°/s</div>
+     <div class="mini" id="rmini">—</div></div>
+   <div class="ctrls" id="rctr"></div>`;
+  const modes=[['Motion','mot'],['Devices','dev'],['CSI Doppler','csi'],['Fused','all']];
+  let mode='mot';
+  const ctr=$('#rctr',p);
+  modes.forEach(([n,m])=>{const b=el('button','btn'+(m===mode?' on':''),n);b.onclick=()=>{mode=m;
+    [...ctr.children].forEach(c=>c.classList.remove('on'));b.classList.add('on');};ctr.appendChild(b);});
+  const persist=el('button','btn','Persistence');ctr.appendChild(persist);let per=.86;
+  persist.onclick=()=>{per=per>.9?.72:.92;persist.classList.toggle('on',per>.9);};
+
+  const cv=$('#rc',p),g=cv.getContext('2d');
+  let ang=0;
+  const contacts=()=>{ // REAL contacts only — camera-detected motion + bridge/known emitters
+    const list=[];
+    // camera motion → forward field-of-view arc (no camera motion = no dots)
+    if((mode==='mot'||mode==='all')&&S.camRunning&&performance.now()-S.motion.ts<500){
+      for(const b of S.motion.blobs){
+        const bearing=-90+(b.cx-0.5)*62;                 // camera H-FOV ≈ 62°, forward = top
+        const r=clamp(1-Math.sqrt(b.area)*2.2,0.14,0.95); // larger footprint = closer
+        list.push({a:bearing*Math.PI/180,r,k:'mot',moving:true,cls:b.cls,
+          o:{mac:b.cls.name,rssi:'—',vendor:'camera motion',size:b.cls.name}});}
+    }
+    // known / SDR-fed device emitters (static unless the bridge reports movement)
+    if(mode==='dev'||mode==='all'||mode==='csi')for(const d of S.devices){
+      list.push({a:d.ang*Math.PI/180,r:clamp(d.r,.1,.96),k:'dev',moving:d.moving,trail:d.trail,speed:d.speed,o:d});}
+    return list;
+  };
+  cv.addEventListener('pointerdown',e=>{
+    const rc=cv.getBoundingClientRect(),cx=rc.width/2,cy=rc.height/2,R=Math.min(cx,cy)*.92;
+    const px=e.clientX-rc.left,py=e.clientY-rc.top;
+    let best=null,bd=1e9;
+    for(const c of contacts()){const x=cx+Math.cos(c.a)*c.r*R,y=cy+Math.sin(c.a)*c.r*R;
+      const dd=Math.hypot(px-x,py-y);if(dd<bd&&dd<28){bd=dd;best={c,x,y};}}
+    if(best){const o=best.c.o,rangeM=fmt(best.c.r*14,1);
+      showPop(e.clientX,e.clientY,best.c.k==='dev'?'DEVICE CONTACT':'MOTION CELL',[
+        ['ID',o.mac||'—'],['Bearing',fmt(best.c.a*180/Math.PI,0)+'°'],
+        ['Range',rangeM+' m'],['RSSI',(o.rssi||'—')+' dBm'],
+        ['Source',o.vendor||'—'],['Band',o.band||freqLabel(S.freqHz)]]);}
+  });
+  p.draw=()=>{
+    const w=cv.width=cv.clientWidth*devicePixelRatio,h=cv.height=cv.clientHeight*devicePixelRatio;
+    const cx=w/2,cy=h/2,R=Math.min(cx,cy)*.92;
+    g.globalCompositeOperation='source-over';
+    g.fillStyle=`rgba(3,10,12,${1-per})`;g.fillRect(0,0,w,h);
+    // rings + spokes
+    g.strokeStyle='rgba(255,42,58,.16)';g.lineWidth=1*devicePixelRatio;
+    for(let i=1;i<=4;i++){g.beginPath();g.arc(cx,cy,R*i/4,0,7);g.stroke();}
+    for(let a=0;a<360;a+=30){g.beginPath();g.moveTo(cx,cy);
+      g.lineTo(cx+Math.cos(a*Math.PI/180)*R,cy+Math.sin(a*Math.PI/180)*R);g.stroke();}
+    // sweep
+    ang=(ang+.0105)%(Math.PI*2);
+    const grd=g.createConicGradient?null:null;
+    g.save();g.beginPath();g.moveTo(cx,cy);
+    g.arc(cx,cy,R,ang-.42,ang);g.closePath();
+    const lg=g.createRadialGradient(cx,cy,0,cx,cy,R);
+    lg.addColorStop(0,'rgba(255,42,58,.35)');lg.addColorStop(1,'rgba(255,42,58,0)');
+    g.fillStyle=lg;g.fill();g.restore();
+    g.strokeStyle='rgba(255,42,58,.9)';g.lineWidth=1.6*devicePixelRatio;g.beginPath();
+    g.moveTo(cx,cy);g.lineTo(cx+Math.cos(ang)*R,cy+Math.sin(ang)*R);g.stroke();
+    // contacts: STATIC objects (white, hollow, parked) vs MOVING (red, live-tracked)
+    const list=contacts();let near=0,lit=0,movn=0;const DPR=devicePixelRatio;
+    for(const c of list){const x=cx+Math.cos(c.a)*c.r*R,y=cy+Math.sin(c.a)*c.r*R;
+      let da=Math.abs(((c.a-ang+Math.PI*3)%(Math.PI*2))-Math.PI);
+      const fresh=da<.35;if(fresh)lit++;
+      const moving=c.moving;if(moving)movn++;
+      if(moving&&c.trail&&c.trail.length>1){ // real-time motion trail
+        g.strokeStyle='rgba(255,42,58,.5)';g.lineWidth=1.6*DPR;g.beginPath();
+        for(let i=0;i<c.trail.length;i++){const tp=c.trail[i];
+          const tx=cx+Math.cos(tp.a)*tp.r*R,ty=cy+Math.sin(tp.a)*tp.r*R;i?g.lineTo(tx,ty):g.moveTo(tx,ty);}
+        g.stroke();
+        const p0=c.trail[Math.max(0,c.trail.length-5)],p1=c.trail[c.trail.length-1]; // velocity vector
+        const vx=(Math.cos(p1.a)*p1.r-Math.cos(p0.a)*p0.r)*R,vy=(Math.sin(p1.a)*p1.r-Math.sin(p0.a)*p0.r)*R;
+        const vm=Math.hypot(vx,vy)||1;g.strokeStyle='rgba(255,42,58,.95)';g.lineWidth=2*DPR;
+        g.beginPath();g.moveTo(x,y);g.lineTo(x+vx/vm*22*DPR,y+vy/vm*22*DPR);g.stroke();}
+      if(moving){ // live target — size-classified for camera motion, red TRK for bridge
+        const cls=c.cls, col=cls?cls.col:'rgba(255,42,58,1)', rad=(cls?cls.px:5)*DPR;
+        g.fillStyle=col;g.globalAlpha=fresh?1:.8;g.beginPath();g.arc(x,y,rad,0,7);g.fill();g.globalAlpha=1;
+        g.strokeStyle=col;g.lineWidth=1.3*DPR;g.beginPath();g.arc(x,y,rad+6*DPR,0,7);g.stroke();
+        const b=rad+9*DPR;g.beginPath();
+        g.moveTo(x-b,y-b+4*DPR);g.lineTo(x-b,y-b);g.lineTo(x-b+4*DPR,y-b);
+        g.moveTo(x+b,y+b-4*DPR);g.lineTo(x+b,y+b);g.lineTo(x+b-4*DPR,y+b);g.stroke();
+        g.fillStyle=col;g.font=(8*DPR)+'px monospace';g.textAlign='left';
+        g.fillText(cls?cls.name.toUpperCase():'TRK',x+(rad+8*DPR),y-6*DPR);
+      }else{ // static object — hollow white marker, STATIC tag
+        const al=fresh?.9:.35;g.strokeStyle=`rgba(235,235,240,${al})`;g.lineWidth=1.4*DPR;
+        if(c.k==='dev'){g.beginPath();g.moveTo(x,y-6*DPR);g.lineTo(x+5*DPR,y+4*DPR);
+          g.lineTo(x-5*DPR,y+4*DPR);g.closePath();g.stroke();}
+        else{g.beginPath();g.arc(x,y,4*DPR,0,7);g.stroke();}
+        if(fresh){g.fillStyle='rgba(235,235,240,.7)';g.font=(7*DPR)+'px monospace';g.textAlign='left';
+          g.fillText('STATIC',x+8*DPR,y+3*DPR);}
+      }
+      if(c.r<.5)near++;}
+    $('#rn',p).textContent=list.length;
+    $('#rmini',p).textContent=`track ${movn} · static ${list.length-movn} · near ${near}`+(movn&&S.motion&&performance.now()-S.motion.ts<600?` · ${S.motion.pace||''} ${S.motion.trend||''}`:'');
+    // center
+    g.fillStyle='#0e0e12';g.beginPath();g.arc(cx,cy,5*devicePixelRatio,0,7);g.fill();
+    g.strokeStyle=var0;g.strokeStyle='rgba(255,42,58,.9)';g.stroke();
+  };
+});
+const var0='rgba(255,42,58,.9)';
+
+/* ================================================================
+   REAL-TIME MOTION DETECTION (camera frame-differencing)
+   Only reports a contact when actual motion is present, and sizes it.
+   ================================================================ */
+S.motion={blobs:[],level:0,ts:0};
+function classifySize(areaFrac,wFrac,hFrac){
+  const tall=hFrac>wFrac*1.4;
+  if(areaFrac<0.006) return {k:'tiny', name:'bird / squirrel', col:'#8a8a92', px:4};
+  if(areaFrac<0.020) return {k:'small',name:'cat / rabbit',    col:'#ffffff', px:6};
+  if(areaFrac<0.060) return {k:'mid',  name:tall?'dog / child':'dog / medium', col:'#ffb020', px:9};
+  if(areaFrac<0.200) return {k:'human',name:tall?'human-size':'large animal', col:'#e01020', px:12};
+  return {k:'large', name:'very large / vehicle', col:'#ff5a6e', px:15};
+}
+function blobify(grid,GX,GY){
+  const thr=2, seen=new Uint8Array(GX*GY), blobs=[], st=[];
+  for(let i=0;i<grid.length;i++){ if(seen[i]||grid[i]<thr)continue;
+    let n=0,sx=0,sy=0,minx=GX,maxx=0,miny=GY,maxy=0; st.length=0; st.push(i); seen[i]=1;
+    while(st.length){ const j=st.pop(), jx=j%GX, jy=(j/GX)|0;
+      n++; sx+=jx+0.5; sy+=jy+0.5;
+      if(jx<minx)minx=jx; if(jx>maxx)maxx=jx; if(jy<miny)miny=jy; if(jy>maxy)maxy=jy;
+      if(jx>0&&!seen[j-1]&&grid[j-1]>=thr){seen[j-1]=1;st.push(j-1);}
+      if(jx<GX-1&&!seen[j+1]&&grid[j+1]>=thr){seen[j+1]=1;st.push(j+1);}
+      if(jy>0&&!seen[j-GX]&&grid[j-GX]>=thr){seen[j-GX]=1;st.push(j-GX);}
+      if(jy<GY-1&&!seen[j+GX]&&grid[j+GX]>=thr){seen[j+GX]=1;st.push(j+GX);} }
+    if(n>=2)blobs.push({n,cx:sx/n/GX,cy:sy/n/GY,w:(maxx-minx+1)/GX,h:(maxy-miny+1)/GY}); }
+  return blobs;
+}
+const MOT={W:160,H:120,prev:null,c:null,x:null,last:0};
+function motionTick(){
+  if(performance.now()-MOT.last<66)return; MOT.last=performance.now();
+  if(!S.camRunning||!S.vidEl||!S.vidEl.videoWidth){S.motion.blobs=[];return;}
+  if(!MOT.c){MOT.c=document.createElement('canvas');MOT.c.width=MOT.W;MOT.c.height=MOT.H;
+    MOT.x=MOT.c.getContext('2d',{willReadFrequently:true});}
+  MOT.x.drawImage(S.vidEl,0,0,MOT.W,MOT.H);
+  let cur;try{cur=MOT.x.getImageData(0,0,MOT.W,MOT.H);}catch(e){return;}
+  if(!MOT.prev){MOT.prev=cur;return;}
+  const GX=48,GY=36,grid=new Float32Array(GX*GY),d=cur.data,pd=MOT.prev.data;let total=0; // finer grid
+  for(let y=0;y<MOT.H;y++)for(let x=0;x<MOT.W;x++){const i=(y*MOT.W+x)*4;
+    const dl=Math.abs(d[i]-pd[i])+Math.abs(d[i+1]-pd[i+1])+Math.abs(d[i+2]-pd[i+2]);
+    if(dl>28){grid[((y/MOT.H*GY)|0)*GX+((x/MOT.W*GX)|0)]++;total++;}}  // lower threshold = more sensitive
+  MOT.prev=cur;
+  S.motion.blobs=blobify(grid,GX,GY).map(b=>({cx:b.cx,cy:b.cy,w:b.w,h:b.h,area:b.n/(GX*GY),
+    cls:classifySize(b.n/(GX*GY),b.w,b.h)})).filter(b=>b.area>0.0016);  // catches squirrel-scale
+  S.motion.level=total/(MOT.W*MOT.H); S.motion.ts=performance.now();
+  // honest behaviour read-out from kinematics (NOT a hostility verdict)
+  MOT.hist=MOT.hist||[];MOT.hist.push(S.motion.level);if(MOT.hist.length>20)MOT.hist.shift();
+  const mean=MOT.hist.reduce((a,b)=>a+b,0)/MOT.hist.length;
+  const varc=MOT.hist.reduce((a,b)=>a+(b-mean)*(b-mean),0)/MOT.hist.length;
+  const area=S.motion.blobs.reduce((a,b)=>a+b.area,0);
+  S.motion.trend=area>(MOT.lastArea||0)*1.2?'approaching':area<(MOT.lastArea||0)*0.8?'moving off':'holding';
+  MOT.lastArea=area;
+  S.motion.pace=varc>0.0006?'fast/erratic':'steady';
+}
+
+/* ================= WEATHER (geolocation + open-meteo, no key) ===== */
+S.weather=null;
+function loadWeather(){
+  if(!navigator.geolocation)return;
+  navigator.geolocation.getCurrentPosition(async pos=>{
+    try{const {latitude:la,longitude:lo}=pos.coords;
+      const r=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${la}&longitude=${lo}&current=temperature_2m,weather_code,wind_speed_10m&temperature_unit=fahrenheit&wind_speed_unit=mph`);
+      const j=await r.json();if(j&&j.current)S.weather={t:j.current.temperature_2m,code:j.current.weather_code,wind:j.current.wind_speed_10m};
+    }catch(e){}
+  },()=>{},{timeout:9000,maximumAge:600000});
+}
+function weatherIcon(c){ if(c==null)return '·';
+  if(c===0)return '☀'; if(c<=3)return '⛅'; if(c<=48)return '🌫';
+  if(c<=67)return '🌧'; if(c<=77)return '🌨'; if(c<=82)return '🌧'; if(c<=86)return '🌨';
+  return '⛈'; }
+
+/* ================= FILE SAVE (artifact downloads cap + fallback) == */
+async function saveFile(filename,data){
+  try{ if(window.claude&&claude.use){ const dl=await claude.use('downloads');
+    if(dl){ await dl.save({filename,data}); toast('Saved: '+filename); return; } } }
+  catch(e){ if(e&&e.code==='declined')return; }
+  try{ const blob=data instanceof Blob?data:new Blob([data]);
+    const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=filename;
+    document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),4000);toast('Saved: '+filename);
+  }catch(e){toast('Save failed');} }
+
+/* ================= VIDEO RECORDING (MediaRecorder on canvas) ====== */
+const REC={on:false,mr:null,chunks:[],canvas:null,ctx:null,btn:null,t0:0};
+function startRec(btn,srcCanvas){
+  try{
+    REC.canvas=document.createElement('canvas');
+    REC.canvas.width=srcCanvas.width;REC.canvas.height=srcCanvas.height;
+    REC.ctx=REC.canvas.getContext('2d');
+    const types=['video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm','video/mp4'];
+    const mt=types.find(t=>window.MediaRecorder&&MediaRecorder.isTypeSupported(t))||'';
+    const st=REC.canvas.captureStream(30);
+    REC.chunks=[];REC.mr=new MediaRecorder(st,mt?{mimeType:mt}:undefined);
+    REC.mr.ondataavailable=e=>{if(e.data&&e.data.size)REC.chunks.push(e.data);};
+    REC.mr.onstop=()=>{const blob=new Blob(REC.chunks,{type:REC.mr.mimeType||'video/webm'});
+      saveFile('allalone_'+Date.now()+(((REC.mr.mimeType||'').includes('mp4'))?'.mp4':'.webm'),blob);};
+    REC.mr.start();REC.on=true;REC.btn=btn;REC.t0=performance.now();
+    if(btn){btn.classList.add('on');btn.textContent='■ STOP';}
+    toast('● Recording…');
+  }catch(e){toast('Record failed: '+(e.message||e.name));}
+}
+function stopRec(btn){ if(REC.mr&&REC.on){try{REC.mr.stop();}catch(e){} }
+  REC.on=false; if(btn){btn.classList.remove('on');btn.textContent='● REC';}}
+
+/* ================= PHOTO CAPTURE + EDITOR ======================== */
+function capturePhoto(){ const cc=S.ccEl,cov=S.covEl; if(!cc)return toast('Start the camera first');
+  const t=document.createElement('canvas');t.width=cc.width;t.height=cc.height;
+  const x=t.getContext('2d');x.drawImage(cc,0,0);if(cov)x.drawImage(cov,0,0);
+  openEditor(t.toDataURL('image/png')); }
+
+let ED=null;
+function initEditor(){
+  if(ED)return;
+  const css=el('style',null,`
+   #edwrap{position:fixed;inset:0;z-index:120;background:rgba(0,0,0,.92);display:none;flex-direction:column}
+   #edwrap.on{display:flex}
+   #edtop{display:flex;gap:6px;align-items:center;padding:7px 9px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+   #edcanvasWrap{flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden;padding:6px}
+   #edcv{max-width:100%;max-height:100%;touch-action:none;border:1px solid var(--line);border-radius:6px}
+   #edbar{display:flex;gap:6px;align-items:center;padding:8px 9px;border-top:1px solid var(--line);flex-wrap:wrap;background:#0a0a0c}
+   .sw{width:22px;height:22px;border-radius:50%;border:2px solid #333;cursor:pointer}
+   .sw.sel{border-color:#fff}
+   #edtext{flex:1;min-width:110px}
+   .emo{font-size:18px;cursor:pointer;padding:2px 4px;border-radius:5px}
+   .emo:active{background:rgba(255,255,255,.15)}`);
+  document.head.appendChild(css);
+  const w=el('div');w.id='edwrap';
+  w.innerHTML=`
+   <div id="edtop">
+     <b style="color:var(--red);letter-spacing:1px">PHOTO EDIT</b>
+     <button class="btn" data-tool="draw">✎ Draw</button>
+     <button class="btn" data-tool="text">T Text</button>
+     <button class="btn" data-tool="emoji">😀 Emoji</button>
+     <label class="sl" style="min-width:120px">SIZE <input id="edsize" type="range" min="6" max="90" value="26"></label>
+     <div class="sp" style="flex:1"></div>
+     <button class="btn" id="edundo">↶ Undo</button>
+     <button class="btn danger" id="edclose">✕</button>
+   </div>
+   <div id="edcanvasWrap"><canvas id="edcv"></canvas></div>
+   <div id="edbar">
+     <input id="edtext" type="text" placeholder="type text, then tap the photo to place">
+     <span id="edsw"></span>
+     <span id="edemo"></span>
+     <div class="sp" style="flex:1"></div>
+     <select id="edfilter"><option value="none">no filter</option><option value="warm">warm</option><option value="cool">cool</option><option value="mono">mono</option><option value="vivid">vivid</option><option value="invert">invert</option></select>
+     <button class="btn on" id="edsave">💾 Save</button>
+   </div>`;
+  document.body.appendChild(w);
+  const cv=$('#edcv',w),g=cv.getContext('2d');
+  ED={w,cv,g,base:new Image(),ops:[],tool:'draw',color:'#ff2a3a',size:26,emoji:'🎯',filter:'none',cur:null};
+  // color swatches
+  const cols=['#ff2a3a','#ffffff','#111111','#ffb020','#38c0ff','#8aff6a','#b06bff','#ff5ad0'];
+  const swWrap=$('#edsw',w);cols.forEach((c,i)=>{const s=el('div','sw'+(i===0?' sel':''));s.style.background=c;
+    s.onclick=()=>{ED.color=c;[...swWrap.children].forEach(n=>n.classList.remove('sel'));s.classList.add('sel');};swWrap.appendChild(s);});
+  // emoji palette
+  const emos=['🎯','⚠','🔴','👤','🐾','📍','🔥','💥','❌','✅','➡','🛰'];
+  const emoWrap=$('#edemo',w);emos.forEach(ch=>{const e2=el('span','emo',ch);
+    e2.onclick=()=>{ED.emoji=ch;ED.tool='emoji';setTool();};emoWrap.appendChild(e2);});
+  function setTool(){[...w.querySelectorAll('[data-tool]')].forEach(b=>b.classList.toggle('on',b.dataset.tool===ED.tool));}
+  w.querySelectorAll('[data-tool]').forEach(b=>b.onclick=()=>{ED.tool=b.dataset.tool;setTool();});
+  $('#edsize',w).oninput=e=>ED.size=+e.target.value;
+  $('#edfilter',w).onchange=e=>{ED.filter=e.target.value;redraw();};
+  $('#edundo',w).onclick=()=>{ED.ops.pop();redraw();};
+  $('#edclose',w).onclick=()=>w.classList.remove('on');
+  $('#edsave',w).onclick=saveEdit;
+  function pt(ev){const r=cv.getBoundingClientRect();return{x:(ev.clientX-r.left)/r.width*cv.width,y:(ev.clientY-r.top)/r.height*cv.height};}
+  cv.addEventListener('pointerdown',ev=>{const q=pt(ev);
+    if(ED.tool==='draw'){ED.cur={t:'d',c:ED.color,s:ED.size*0.25,pts:[q]};ED.ops.push(ED.cur);}
+    else if(ED.tool==='text'){const txt=$('#edtext',w).value.trim()||'TEXT';ED.ops.push({t:'t',x:q.x,y:q.y,txt,c:ED.color,s:ED.size});redraw();}
+    else{ED.ops.push({t:'e',x:q.x,y:q.y,ch:ED.emoji,s:ED.size*1.4});redraw();}});
+  cv.addEventListener('pointermove',ev=>{if(ED.cur){ED.cur.pts.push(pt(ev));redraw();}});
+  window.addEventListener('pointerup',()=>{ED.cur=null;});
+  ED.redraw=redraw;
+  function redraw(){cv.width=ED.base.naturalWidth||cv.width;cv.height=ED.base.naturalHeight||cv.height;
+    g.save();g.filter=cssFilter(ED.filter);g.drawImage(ED.base,0,0,cv.width,cv.height);g.restore();
+    for(const o of ED.ops){
+      if(o.t==='d'){g.strokeStyle=o.c;g.lineWidth=o.s;g.lineJoin='round';g.lineCap='round';g.beginPath();
+        o.pts.forEach((p,i)=>i?g.lineTo(p.x,p.y):g.moveTo(p.x,p.y));g.stroke();}
+      else if(o.t==='t'){g.fillStyle=o.c;g.font='bold '+o.s+'px sans-serif';g.textBaseline='middle';
+        g.lineWidth=o.s*0.12;g.strokeStyle='rgba(0,0,0,.6)';g.strokeText(o.txt,o.x,o.y);g.fillText(o.txt,o.x,o.y);}
+      else if(o.t==='e'){g.font=o.s+'px sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText(o.ch,o.x,o.y);g.textAlign='left';}}
+  }
+  function cssFilter(f){return f==='warm'?'saturate(1.3) sepia(.3)':f==='cool'?'hue-rotate(180deg) saturate(1.2)':
+    f==='mono'?'grayscale(1) contrast(1.1)':f==='vivid'?'saturate(1.8) contrast(1.15)':f==='invert'?'invert(1)':'none';}
+  async function saveEdit(){cv.toBlob(blob=>{saveFile('allalone_'+Date.now()+'.png',blob);},'image/png');}
+}
+function openEditor(dataURL){initEditor();ED.ops=[];ED.cur=null;ED.filter='none';
+  const f=$('#edfilter',ED.w);if(f)f.value='none';
+  ED.base=new Image();ED.base.onload=()=>{ED.cv.width=ED.base.naturalWidth;ED.cv.height=ED.base.naturalHeight;ED.redraw();};
+  ED.base.src=dataURL;ED.w.classList.add('on');}
+
+
+/* ================================================================
+   PAGE 2 — CAMERA VISION  (filters + XYZ measurement overlay)
+   ================================================================ */
+definePage('cam','SCOPE',IC.cam,(p)=>{
+  p.innerHTML=`
+   <div class="hd"><h2>Scope</h2><span class="sub">zoom · record · reticle optics</span>
+     <div class="sp"></div><button class="btn" id="camStart">◉ START</button>
+     <button class="btn" id="camFlip">⟲ FLIP</button>
+     <select id="camSel" style="max-width:96px"><option value="">Auto</option></select></div>
+   <div class="grow" id="camWrap" data-pt="cam">
+     <video id="vid" playsinline muted></video>
+     <canvas id="cc" style="position:absolute;inset:0"></canvas>
+     <canvas id="cov" style="position:absolute;inset:0;pointer-events:none"></canvas>
+     <div class="legend" id="cleg">X/Y/Z</div>
+   </div>
+   <div class="ctrls" id="cctr"></div>`;
+  const vid=$('#vid',p),cc=$('#cc',p),cg=cc.getContext('2d',{willReadFrequently:true});
+  const cov=$('#cov',p),og=cov.getContext('2d');
+  let filter='none', showAxis={x:true,y:true,z:true}, unit='in', ppi=96, zoom=0, reticle='none', heatTrail=false;
+  const persist=new Float32Array(40*30);
+  S.vidEl=vid;S.ccEl=cc;S.covEl=cov;S.camSelEl=$('#camSel',p);
+  $('#camSel',p).onchange=async e=>{S.camDeviceId=e.target.value||null;if(S.camRunning)await startCam();};
+  S.onCamChange=(on)=>{const b=$('#camStart',p);if(b){b.classList.toggle('on',on);b.textContent=on?'■ STOP':'◉ START';}};
+  const mkrow=()=>{const d=el('div','');d.style.cssText='display:flex;gap:6px;flex-wrap:wrap;width:100%;align-items:center';return d;};
+  const ctr=$('#cctr',p);
+  // filters
+  const filters=[['None','none'],['Thermal','thermal'],['Night Vis','night'],['Negative','neg'],
+    ['Red','red'],['UV','uv'],['Edge','edge'],['Mono IR','mono'],['Predator','pred'],
+    ['X-Ray','xray'],['Multispec','multispec'],['Aurora','aurora']];
+  const frow=mkrow();
+  filters.forEach(([n,f])=>{const b=el('button','btn'+(f===filter?' on':''),n);
+    b.onclick=()=>{filter=f;[...frow.children].forEach(c=>c.classList.remove('on'));b.classList.add('on');};frow.appendChild(b);});
+  ctr.appendChild(frow);
+  // reticle + heat-trail
+  const rrow=mkrow();rrow.appendChild(el('span','chip','RETICLE'));
+  [['Off','none'],['Cross','cross'],['Mil-Dot','mildot'],['Scope','scope'],['Range','range']].forEach(([n,v])=>{
+    const b=el('button','btn'+(v==='none'?' on':''),n);b.onclick=()=>{reticle=v;
+      [...rrow.querySelectorAll('.btn')].forEach(c=>c.classList.remove('on'));b.classList.add('on');};rrow.appendChild(b);});
+  const htb=el('button','btn','🔥 Heat-trail');htb.onclick=()=>{heatTrail=!heatTrail;htb.classList.toggle('on',heatTrail);if(!heatTrail)persist.fill(0);};
+  rrow.appendChild(htb);ctr.appendChild(rrow);
+  // zoom
+  const zrow=el('label','sl','ZOOM 0–100 <input id="zmr" type="range" min="0" max="100" value="0"><b id="zmv">0</b>');
+  zrow.style.width='100%';ctr.appendChild(zrow);
+  $('#zmr',zrow).oninput=e=>{zoom=+e.target.value;$('#zmv',zrow).textContent=zoom;
+    try{const tr=S.camStream&&S.camStream.getVideoTracks()[0],caps=tr&&tr.getCapabilities&&tr.getCapabilities();
+      if(caps&&caps.zoom)tr.applyConstraints({advanced:[{zoom:caps.zoom.min+(caps.zoom.max-caps.zoom.min)*(zoom/100)}]});}catch(e){}};
+  // actions: FIRE (capture) + REC
+  const act=mkrow();
+  const bFire=el('button','btn danger','🎯 FIRE');bFire.onclick=()=>capturePhoto();
+  const bRec=el('button','btn','● REC');bRec.onclick=()=>{REC.on?stopRec(bRec):startRec(bRec,cc);};
+  act.append(bFire,bRec);ctr.appendChild(act);
+  // axes + units + cal
+  const arow=mkrow();
+  ['x','y','z'].forEach(ax=>{const b=el('button','btn on',ax.toUpperCase());
+    b.onclick=()=>{showAxis[ax]=!showAxis[ax];b.classList.toggle('on',showAxis[ax]);};arow.appendChild(b);});
+  const us=el('select','','<option value="in">in</option><option value="cm">cm</option><option value="mm">mm</option>');
+  us.onchange=()=>unit=us.value;arow.appendChild(el('span','chip','UNITS'));arow.appendChild(us);
+  const cal=el('label','sl','CAL <input id="calr" type="range" min="40" max="320" value="96"><b id="calv">96</b>');
+  cal.style.minWidth='160px';arow.appendChild(cal);ctr.appendChild(arow);
+  $('#calr',cal).oninput=e=>{ppi=+e.target.value;$('#calv',cal).textContent=ppi;};
+
+  $('#camStart',p).onclick=async()=>{
+    if(S.camRunning){ if(S.camStream)S.camStream.getTracks().forEach(t=>t.stop());
+      S.camRunning=false;vid.srcObject=null;$('#pCam').className='pill';$('#pCam').textContent='CAM ○';S.onCamChange(false); }
+    else { await armAll(); }            // requests camera + mic + motion together
+  };
+  $('#camFlip',p).onclick=()=>flipCam();
+  p.onShow=()=>{ if(S.camStream&&!vid.srcObject){vid.srcObject=S.camStream;vid.play().catch(()=>{});} };
+
+  // tap to drop a measurement marker + info
+  let marker=null;
+  $('#camWrap',p).addEventListener('pointerdown',e=>{
+    const r=cov.getBoundingClientRect();marker={x:(e.clientX-r.left),y:(e.clientY-r.top)};
+    const cx=r.width/2,cy=r.height/2;
+    const toUnit=px=>{const inch=px/ppi;return unit==='in'?fmt(inch,2)+' in':unit==='cm'?fmt(inch*2.54,2)+' cm':fmt(inch*25.4,1)+' mm';};
+    showPop(e.clientX,e.clientY,'MEASURE POINT',[
+      ['X offset',toUnit(marker.x-cx)],['Y offset',toUnit(cy-marker.y)],
+      ['Z (est)',toUnit((r.width/2-Math.abs(marker.x-cx))*.4)],
+      ['Pixel',`${marker.x|0},${marker.y|0}`],['Heading',fmt(S.heading,0)+'°']]);
+  });
+
+  function pxToUnit(px){const inch=px/ppi;return unit==='in'?inch:unit==='cm'?inch*2.54:inch*25.4;}
+  function unitStep(){return unit==='in'?ppi:unit==='cm'?ppi/2.54:ppi/25.4;} // px per 1 unit
+  function unitSuffix(){return unit;}
+
+  p.draw=()=>{
+    const w=cc.clientWidth,h=cc.clientHeight,DPR=devicePixelRatio;
+    [cc,cov].forEach(c=>{c.width=w*DPR;c.height=h*DPR;});
+    cg.setTransform(DPR,0,0,DPR,0,0);og.setTransform(DPR,0,0,DPR,0,0);og.clearRect(0,0,w,h);
+    if(S.camRunning&&vid.videoWidth){
+      const vw=vid.videoWidth,vh=vid.videoHeight,z=1+(zoom/100)*19;   // 1×–20× digital telescopic
+      const sw=vw/z,sh=vh/z,sx=(vw-sw)/2,sy=(vh-sh)/2;
+      cg.drawImage(vid,sx,sy,sw,sh,0,0,w,h);
+      if(filter==='amber'){cg.fillStyle='rgba(255,176,32,.14)';cg.fillRect(0,0,w,h);}
+      else if(filter!=='none')applyFilter(cg,w,h,filter);
+    }else{
+      cg.clearRect(0,0,w,h);cg.fillStyle='#141418';cg.fillRect(0,0,w,h);
+      cg.fillStyle='rgba(255,42,58,.9)';cg.font='15px monospace';cg.textAlign='center';
+      cg.fillText('▶  TAP  START',w/2,h/2-6);
+      cg.fillStyle='rgba(180,180,186,.85)';cg.font='11px monospace';
+      cg.fillText('grant camera to open the scope',w/2,h/2+14);cg.textAlign='left';
+    }
+    if(heatTrail)drawHeat(w,h);
+    drawMotionBoxes(w,h);
+    drawAxes(w,h);
+    drawReticle(w,h);
+    if(marker)drawMarker(w,h);
+    drawHUD(w,h);
+    if(REC.on&&REC.ctx){REC.ctx.drawImage(cc,0,0,REC.canvas.width,REC.canvas.height);
+      REC.ctx.drawImage(cov,0,0,REC.canvas.width,REC.canvas.height);}
+  };
+  function drawHeat(w,h){ // motion-persistence trail (NOT a thermal sensor — phones have none)
+    const GX=40,GY=30;for(let i=0;i<persist.length;i++)persist[i]*=0.93;
+    if(performance.now()-S.motion.ts<400)for(const b of S.motion.blobs){
+      const gx=(b.cx*GX)|0,gy=(b.cy*GY)|0;
+      for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){const xx=gx+dx,yy=gy+dy;
+        if(xx<0||yy<0||xx>=GX||yy>=GY)continue;persist[yy*GX+xx]=Math.min(1,persist[yy*GX+xx]+0.3);}}
+    og.globalAlpha=0.5;const cw=w/GX,ch=h/GY;
+    for(let y=0;y<GY;y++)for(let x=0;x<GX;x++){const v=persist[y*GX+x];if(v<0.05)continue;
+      og.fillStyle=heatColor(v);og.fillRect(x*cw,y*ch,cw+1,ch+1);}og.globalAlpha=1;
+  }
+  function drawMotionBoxes(w,h){if(!S.camRunning||performance.now()-S.motion.ts>400)return;
+    og.textAlign='left';og.font='10px monospace';
+    for(const b of S.motion.blobs){const x=b.cx*w,y=b.cy*h,bw=b.w*w,bh=b.h*h;
+      og.strokeStyle=b.cls.col;og.lineWidth=1.6;og.strokeRect(x-bw/2,y-bh/2,bw,bh);
+      og.fillStyle=b.cls.col;og.fillText(b.cls.name,x-bw/2,y-bh/2-4);}
+  }
+  function drawReticle(w,h){if(reticle==='none')return;const cx=w/2,cy=h/2,R=Math.min(w,h)*0.46;
+    const span=reticle==='scope'?R:Math.max(w,h);
+    if(reticle==='scope'){og.save();og.beginPath();og.rect(0,0,w,h);og.arc(cx,cy,R,0,7,true);
+      og.fillStyle='rgba(0,0,0,.82)';og.fill('evenodd');og.restore();
+      og.strokeStyle='#000';og.lineWidth=3;og.beginPath();og.arc(cx,cy,R,0,7);og.stroke();}
+    og.strokeStyle='rgba(255,42,58,.9)';og.fillStyle='rgba(255,42,58,.9)';og.lineWidth=1.2;
+    og.beginPath();og.moveTo(cx-span,cy);og.lineTo(cx+span,cy);og.moveTo(cx,cy-span);og.lineTo(cx,cy+span);og.stroke();
+    og.beginPath();og.arc(cx,cy,2.5,0,7);og.fill();
+    if(reticle==='mildot'||reticle==='range'){for(let i=1;i<=6;i++){const s=i*R/7;
+      [[cx+s,cy],[cx-s,cy],[cx,cy+s],[cx,cy-s]].forEach(([mx,my])=>{og.beginPath();og.arc(mx,my,2,0,7);og.fill();});
+      if(reticle==='range'&&i<=4){for(let k=-i;k<=i;k++){og.beginPath();og.arc(cx+k*R/7,cy+s,1.5,0,7);og.fill();}}}} // Christmas-tree holdover
+    if(reticle==='range'){og.font='9px monospace';og.textAlign='left';
+      for(let i=1;i<=5;i++)og.fillText((i*2)+'mil',cx+4,cy-i*R/7+3);}
+  }
+  function drawHUD(w,h){const d=new Date();og.textAlign='left';og.textBaseline='alphabetic';
+    og.font='11px monospace';og.fillStyle='rgba(235,235,240,.92)';og.fillText(d.toLocaleTimeString('en-GB'),8,20);
+    og.font='9px monospace';og.fillStyle='rgba(180,180,186,.85)';
+    og.fillText(d.toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'}),8,33);
+    og.textAlign='right';og.font='10px monospace';og.fillStyle='rgba(255,42,58,.95)';
+    og.fillText((S.camFacing==='user'?'FRONT':'REAR')+' · '+filter.toUpperCase(),w-8,20);
+    og.fillStyle='rgba(235,235,240,.88)';og.fillText('ZOOM '+(1+(zoom/100)*19).toFixed(1)+'×',w-8,33);
+    if(S.weather)og.fillStyle='rgba(255,176,32,.95)',og.fillText(weatherIcon(S.weather.code)+' '+Math.round(S.weather.t)+'°F',w-8,46);
+    og.textAlign='left';
+  }
+
+  function drawAxes(w,h){
+    const cx=w/2,cy=h/2,step=unitStep();
+    og.lineWidth=1;og.font='8px monospace';og.textAlign='center';
+    if(showAxis.x){
+      og.strokeStyle='rgba(235,235,240,.5)';og.beginPath();og.moveTo(0,cy);og.lineTo(w,cy);og.stroke();
+      for(let i=-40;i<=40;i++){const x=cx+i*step;if(x<0||x>w)continue;
+        const big=i%5===0;og.strokeStyle=big?'rgba(235,235,240,.7)':'rgba(235,235,240,.35)';
+        og.beginPath();og.moveTo(x,cy-(big?8:4));og.lineTo(x,cy+(big?8:4));og.stroke();
+        if(big&&i!==0){og.fillStyle='rgba(235,235,240,.8)';og.fillText(i+'',x,cy+18);}}
+    }
+    if(showAxis.y){
+      og.strokeStyle='rgba(235,235,240,.5)';og.beginPath();og.moveTo(cx,0);og.lineTo(cx,h);og.stroke();
+      og.textAlign='left';
+      for(let i=-40;i<=40;i++){const y=cy-i*step;if(y<0||y>h)continue;
+        const big=i%5===0;og.strokeStyle=big?'rgba(235,235,240,.7)':'rgba(235,235,240,.3)';
+        og.beginPath();og.moveTo(cx-(big?8:4),y);og.lineTo(cx+(big?8:4),y);og.stroke();
+        if(big&&i!==0){og.fillStyle='rgba(235,235,240,.85)';
+          og.fillText((i>0?'Y+':'Y')+i,cx+11,y+3);}}
+      og.textAlign='center';
+    }
+    if(showAxis.z){ // perspective Z vanishing lines
+      og.strokeStyle='rgba(255,90,110,.45)';
+      [[0,0],[w,0],[0,h],[w,h]].forEach(([x,y])=>{og.beginPath();og.moveTo(x,y);
+        og.lineTo(cx+(x-cx)*.42,cy+(y-cy)*.42);og.stroke();});
+      og.fillStyle='rgba(255,90,110,.8)';og.fillText('Z',cx+22,cy-22);
+    }
+    $('#cleg',p).innerHTML=`X:${showAxis.x?'ON':'off'} Y:${showAxis.y?'ON':'off'} Z:${showAxis.z?'ON':'off'}<br>1 tick = 1 ${unitSuffix()}`;
+  }
+  function drawMarker(w,h){
+    const cx=w/2,cy=h/2;
+    og.strokeStyle='var(--red)';og.strokeStyle='rgba(255,59,82,.95)';og.lineWidth=1;
+    og.beginPath();og.arc(marker.x,marker.y,9,0,7);og.stroke();
+    og.beginPath();og.moveTo(marker.x-14,marker.y);og.lineTo(marker.x+14,marker.y);
+    og.moveTo(marker.x,marker.y-14);og.lineTo(marker.x,marker.y+14);og.stroke();
+    og.setLineDash([4,4]);og.strokeStyle='rgba(255,59,82,.6)';
+    og.beginPath();og.moveTo(cx,cy);og.lineTo(marker.x,marker.y);og.stroke();og.setLineDash([]);
+    const d=Math.hypot(marker.x-cx,marker.y-cy);
+    og.fillStyle='rgba(255,59,82,.95)';og.font='9px monospace';
+    const inch=d/ppi;const lab=unit==='in'?fmt(inch,2)+'in':unit==='cm'?fmt(inch*2.54,1)+'cm':fmt(inch*25.4,0)+'mm';
+    og.fillText(lab,(marker.x+cx)/2+6,(marker.y+cy)/2);
+  }
+});
+
+/* pixel-level camera filters */
+function applyFilter(g,w,h,f){
+  const W=g.canvas.width,H=g.canvas.height;
+  let img;try{img=g.getImageData(0,0,W,H);}catch(e){return;}
+  const d=img.data;
+  for(let i=0;i<d.length;i+=4){
+    const r=d[i],gr=d[i+1],b=d[i+2];
+    const lum=(r*.299+gr*.587+b*.114);
+    switch(f){
+      case 'thermal':{const t=lum/255;
+        let R,G,B;
+        if(t<.25){R=0;G=0;B=t*4*200;}
+        else if(t<.5){R=0;G=(t-.25)*4*255;B=200-(t-.25)*4*200;}
+        else if(t<.75){R=(t-.5)*4*255;G=255;B=0;}
+        else{R=255;G=255-(t-.75)*4*200;B=(t-.75)*4*255;}
+        d[i]=R;d[i+1]=G;d[i+2]=B;break;}
+      case 'night':{const v=clamp(lum*1.9,0,255);d[i]=v*.25;d[i+1]=v;d[i+2]=v*.3;break;}
+      case 'neg':d[i]=255-r;d[i+1]=255-gr;d[i+2]=255-b;break;
+      case 'red':{const v=clamp(lum*1.5,0,255);d[i]=v;d[i+1]=v*.12;d[i+2]=v*.12;break;}
+      case 'uv':{d[i]=clamp(b*1.3+lum*.3,0,255);d[i+1]=clamp(lum*.2,0,255);d[i+2]=clamp(r*1.1+120,0,255);break;}
+      case 'mono':{const v=clamp((255-lum)*1.1,0,255);d[i]=d[i+1]=d[i+2]=v;break;}
+      case 'pred':{const t=lum/255;d[i]=clamp(Math.sin(t*6.28)*127+128,0,255);
+        d[i+1]=clamp(Math.sin(t*6.28+2)*127+128,0,255);d[i+2]=clamp(Math.sin(t*6.28+4)*127+128,0,255);break;}
+      case 'xray':{const v=255-clamp(lum*1.4,0,255);d[i]=v*.7;d[i+1]=v*.85;d[i+2]=v;break;}
+      case 'aurora':{const t=lum/255;d[i]=clamp(t*80,0,255);d[i+1]=clamp(t*255,0,255);
+        d[i+2]=clamp(120+t*100,0,255);break;}
+      case 'multispec':{const t=lum/255; // visible-light false-colour band split (not real EM/IR sensing)
+        d[i]=clamp(Math.sin(t*3.14159)*255,0,255);
+        d[i+1]=clamp(Math.sin(t*3.14159+2.1)*255,0,255);
+        d[i+2]=clamp(Math.sin(t*3.14159+4.2)*255,0,255);break;}
+    }
+  }
+  if(f==='edge'){edgeSobel(d,W,H);}
+  g.putImageData(img,0,0);
+}
+function edgeSobel(d,W,H){
+  const gray=new Float32Array(W*H);
+  for(let i=0;i<W*H;i++)gray[i]=d[i*4]*.299+d[i*4+1]*.587+d[i*4+2]*.114;
+  for(let y=1;y<H-1;y++)for(let x=1;x<W-1;x++){
+    const i=y*W+x;
+    const gx=-gray[i-W-1]-2*gray[i-1]-gray[i+W-1]+gray[i-W+1]+2*gray[i+1]+gray[i+W+1];
+    const gy=-gray[i-W-1]-2*gray[i-W]-gray[i-W+1]+gray[i+W-1]+2*gray[i+W]+gray[i+W+1];
+    const m=clamp(Math.hypot(gx,gy),0,255),o=i*4;
+    d[o]=m*.1;d[o+1]=m;d[o+2]=m*.6;}
+}
+
+/* ================================================================
+   PAGE 3 — WATERFALL + SDR device table
+   ================================================================ */
+definePage('water','WFALL',IC.water,(p)=>{
+  p.innerHTML=`
+   <div class="hd"><h2>Waterfall</h2><span class="sub">audio spectrum ↓ time · SDR survey</span>
+     <div class="sp"></div><button class="btn" id="wMic">◉ MIC</button></div>
+   <div class="grow"><canvas id="wc" data-pt="w"></canvas>
+     <div class="legend">top = now · f-axis L→R</div></div>
+   <div class="ctrls scroll" style="max-height:46%">
+     <table><thead><tr><th>MAC</th><th>RSSI</th><th>CH</th><th>BAND</th><th>TYPE</th><th>VENDOR</th></tr></thead>
+     <tbody id="sdrt"></tbody></table></div>`;
+  $('#wMic',p).onclick=async()=>{await initAudio();$('#wMic',p).classList.add('on');};
+  const cv=$('#wc',p),g=cv.getContext('2d');let img=null;
+  function renderTable(){
+    const tb=$('#sdrt',p);tb.innerHTML='';
+    for(const d of S.devices){const cls=d.rssi>-55?'sig':d.rssi>-75?'sigw':'sigb';
+      const tr=el('tr','',`<td><b>${d.mac}</b></td><td class="${cls}">${d.rssi}</td><td>${d.ch}</td>
+        <td>${d.band}</td><td>${d.type}</td><td>${d.vendor}</td>`);
+      tr.style.cursor='pointer';tr.setAttribute('data-pt','1');
+      tr.onclick=e=>showPop(e.clientX,e.clientY,'SDR TARGET',[
+        ['MAC',d.mac],['RSSI',d.rssi+' dBm'],['Channel',d.ch],['Band',d.band],
+        ['Type',d.type],['Vendor',d.vendor],['Bearing',fmt(d.ang,0)+'°']]);
+      tb.appendChild(tr);}
+  }
+  renderTable();setInterval(renderTable,1500);
+  p.draw=()=>{
+    const w=Math.round(cv.clientWidth*devicePixelRatio),h=Math.round(cv.clientHeight*devicePixelRatio);
+    if(cv.width!==w||cv.height!==h){cv.width=w;cv.height=h;g.fillStyle='#0a0a0c';g.fillRect(0,0,w,h);} // size once
+    const line=g.getImageData(0,0,w,h-1);g.putImageData(line,0,1); // scroll down 1px
+    for(let x=0;x<w;x++){const b=S.bands[(x/w*S.bands.length)|0]||0;g.fillStyle=heatColor(b);g.fillRect(x,0,1,1);}
+  };
+});
+function heatColor(t){t=clamp(t,0,1);let r,g,b;
+  if(t<.5){r=35+t*2*220;g=0;b=t*2*18;}             // near-black → deep red → red
+  else{r=255;g=(t-.5)*2*255;b=(t-.5)*2*255;}        // red → white (hot)
+  return`rgb(${r|0},${g|0},${b|0})`;}
+
+/* ================================================================
+   PAGE 4 — SCATTER / CONSTELLATION
+   ================================================================ */
+definePage('scatter','SCATTER',IC.scatter,(p)=>{
+  p.innerHTML=`<div class="hd"><h2>Scatter / IQ</h2><span class="sub">amplitude × band · live</span>
+    <div class="sp"></div><span class="chip">pts <b id="scn">0</b></span></div>
+    <div class="grow"><canvas id="sc" data-pt="s"></canvas><div class="legend">x: freq band · y: level</div></div>
+    <div class="ctrls" id="sctr"></div>`;
+  let modeIQ=false;const ctr=$('#sctr',p);
+  const b1=el('button','btn on','Spectral');const b2=el('button','btn','IQ Constellation');
+  b1.onclick=()=>{modeIQ=false;b1.classList.add('on');b2.classList.remove('on');};
+  b2.onclick=()=>{modeIQ=true;b2.classList.add('on');b1.classList.remove('on');};
+  ctr.append(b1,b2);
+  const cv=$('#sc',p),g=cv.getContext('2d');const trail=[];
+  p.draw=()=>{
+    const w=cv.width=cv.clientWidth*devicePixelRatio,h=cv.height=cv.clientHeight*devicePixelRatio;
+    g.fillStyle='rgba(3,10,13,.25)';g.fillRect(0,0,w,h);
+    g.strokeStyle='rgba(255,42,58,.1)';for(let i=0;i<=8;i++){g.beginPath();
+      g.moveTo(w*i/8,0);g.lineTo(w*i/8,h);g.moveTo(0,h*i/8);g.lineTo(w,h*i/8);g.stroke();}
+    let n=0;
+    if(!modeIQ){
+      for(let b=0;b<S.bands.length;b++){const x=b/S.bands.length*w,y=h-S.bands[b]*h;
+        g.fillStyle=heatColor(S.bands[b]);g.beginPath();g.arc(x,y,2.5*devicePixelRatio,0,7);g.fill();n++;}
+    }else{
+      const t=performance.now()/600;
+      for(let b=0;b<S.bands.length;b++){const amp=S.bands[b]*.5+.1;
+        const ph=b*.5+t;const x=w/2+Math.cos(ph)*amp*w*.42;const y=h/2+Math.sin(ph)*amp*h*.42;
+        g.fillStyle=`rgba(235,235,240,${.3+amp})`;g.beginPath();g.arc(x,y,2.4*devicePixelRatio,0,7);g.fill();n++;}
+      g.strokeStyle='rgba(255,90,110,.35)';g.beginPath();g.arc(w/2,h/2,S.micLevel*w*.4,0,7);g.stroke();
+    }
+    $('#scn',p).textContent=n;
+  };
+});
+
+/* ================================================================
+   PAGE 5 — COMPASS
+   ================================================================ */
+definePage('compass','COMPASS',IC.compass,(p)=>{
+  p.innerHTML=`<div class="hd"><h2>Compass</h2><span class="sub">live heading · scrolling dial</span>
+    <div class="sp"></div><button class="btn" id="cmEn">◉ ENABLE</button></div>
+    <div class="grow"><canvas id="cmc" data-pt="c"></canvas><div class="mini" id="cmv">heading —</div></div>`;
+  $('#cmEn',p).onclick=async()=>{await armAll();$('#cmEn',p).classList.add('on');};
+  const cv=$('#cmc',p),g=cv.getContext('2d');
+  const CARD=i=>['N','E','S','W'][i/90];
+  p.draw=()=>{
+    const DPR=devicePixelRatio, hd=((S.heading%360)+360)%360;
+    const w=cv.width=cv.clientWidth*DPR,h=cv.height=cv.clientHeight*DPR;
+    g.clearRect(0,0,w,h);
+    // ===== scrolling heading tape (white) =====
+    const tapeH=58*DPR, ppd=w/90;                 // 90° visible span
+    g.fillStyle='#f2f2f4';g.fillRect(0,0,w,tapeH);
+    g.textAlign='center';g.font=(11*DPR)+'px monospace';g.textBaseline='alphabetic';
+    for(let d=-46;d<=46;d++){const deg=((Math.round(hd)+d)%360+360)%360;
+      const x=w/2+d*ppd; if(x<-12||x>w+12)continue;
+      const major=deg%10===0, mid=deg%5===0;
+      g.strokeStyle=deg%90===0?'#d01020':(major?'#222':'#888');
+      g.lineWidth=(major?2:1)*DPR;g.beginPath();
+      g.moveTo(x,tapeH);g.lineTo(x,tapeH-(major?22:mid?13:8)*DPR);g.stroke();
+      if(major){const lab=deg%90===0?CARD(deg):(''+deg);
+        g.fillStyle=deg%90===0?'#d01020':'#111';g.fillText(lab,x,tapeH-26*DPR);}}
+    g.strokeStyle='#e01020';g.lineWidth=2.5*DPR;g.beginPath();g.moveTo(w/2,0);g.lineTo(w/2,tapeH);g.stroke();
+    g.fillStyle='#e01020';g.beginPath();g.moveTo(w/2-7*DPR,0);g.lineTo(w/2+7*DPR,0);g.lineTo(w/2,11*DPR);g.closePath();g.fill();
+    // ===== rotating dial (white face, black ticks, red cardinals) =====
+    const cx=w/2, cy=tapeH+(h-tapeH)/2, R=Math.min(cx,(h-tapeH)/2)*0.88;
+    g.fillStyle='#ffffff';g.beginPath();g.arc(cx,cy,R,0,7);g.fill();
+    g.strokeStyle='#111';g.lineWidth=2*DPR;g.stroke();
+    const tilt=clamp(((S.pitch||90)-90)/90,-1,1);   // phone tilt → perspective squash (Galaxy-watch style)
+    g.save();g.translate(cx,cy);g.scale(1,1-0.38*Math.abs(tilt));g.rotate(-hd*Math.PI/180);
+    for(let i=0;i<360;i++){const a=(i-90)*Math.PI/180;const major=i%30===0,mid=i%10===0;
+      g.strokeStyle=i%90===0?'#e01020':(major?'#111':'#555');g.lineWidth=(major?2:1)*DPR;
+      const r0=R-(major?18:mid?11:6)*DPR;
+      g.beginPath();g.moveTo(Math.cos(a)*R,Math.sin(a)*R);g.lineTo(Math.cos(a)*r0,Math.sin(a)*r0);g.stroke();}
+    g.textAlign='center';g.textBaseline='middle';g.font='bold '+(12*DPR)+'px monospace';
+    for(let i=0;i<360;i+=30){const a=(i-90)*Math.PI/180;
+      const lx=Math.cos(a)*(R-32*DPR),ly=Math.sin(a)*(R-32*DPR);
+      g.save();g.translate(lx,ly);g.rotate(hd*Math.PI/180);   // keep numbers upright
+      g.fillStyle=i%90===0?'#e01020':'#111';g.fillText(i%90===0?CARD(i):(''+i),0,0);g.restore();}
+    for(const d of S.devices){const a=(d.ang-90)*Math.PI/180;g.fillStyle=d.moving?'#e01020':'#111';
+      g.beginPath();g.arc(Math.cos(a)*(R*0.80),Math.sin(a)*(R*0.80),d.moving?3.6*DPR:2.8*DPR,0,7);g.fill();}
+    // sun bearing on the dial (E→W through the day)
+    if(S.pos){const sr=sunRaDec(new Date()),sp=altaz(sr.ra,sr.dec,S.pos.lat,S.pos.lon,new Date());
+      const a=(sp.az-90)*Math.PI/180;g.fillStyle=sp.alt>0?'#ffb020':'#8a6a20';
+      g.save();g.translate(Math.cos(a)*(R*0.92),Math.sin(a)*(R*0.92));g.rotate(hd*Math.PI/180);
+      g.beginPath();g.arc(0,0,5*DPR,0,7);g.fill();g.fillStyle='#111';g.font=(9*DPR)+'px monospace';g.textAlign='center';g.fillText('☀',0,3*DPR);g.restore();}
+    g.restore();
+    // fixed red lubber needle at top
+    g.strokeStyle='#e01020';g.lineWidth=3*DPR;g.beginPath();g.moveTo(cx,cy);g.lineTo(cx,cy-R);g.stroke();
+    g.fillStyle='#e01020';g.beginPath();g.moveTo(cx,cy-R);g.lineTo(cx-7*DPR,cy-R+15*DPR);g.lineTo(cx+7*DPR,cy-R+15*DPR);g.closePath();g.fill();
+    g.fillStyle='#111';g.beginPath();g.arc(cx,cy,5*DPR,0,7);g.fill();
+    g.fillStyle='#e01020';g.textAlign='center';g.textBaseline='middle';g.font='bold '+(19*DPR)+'px monospace';
+    g.fillText(fmt(hd,0)+'°',cx,cy+R*0.42);
+    const card=['N','NE','E','SE','S','SW','W','NW'][Math.round(hd/45)%8];
+    $('#cmv',p).textContent=S.headingOK?`heading ${fmt(hd,0)}° ${card}`:'tap ENABLE to start the compass';
+  };
+});
+
+/* ================================================================
+   PAGE 6 — SONAR (active audio ping + echo rings)
+   ================================================================ */
+definePage('sonar','SONAR',IC.sonar,(p)=>{
+  p.innerHTML=`<div class="hd"><h2>Sonar</h2><span class="sub">acoustic ping · echo map</span>
+    <div class="sp"></div><button class="btn" id="ping">◉ PING</button>
+    <button class="btn" id="autop">AUTO</button></div>
+    <div class="grow"><canvas id="snc" data-pt="sn"></canvas><div class="mini" id="snv">idle</div></div>`;
+  const cv=$('#snc',p),g=cv.getContext('2d');let rings=[],auto=false,sweep=0;
+  function ping(){
+    rings.push({r:0,a:1});$('#snv',p).textContent='ping @ '+freqLabel(S.freqHz);
+    if(S.audioReady===true&&S.audioCtx){const o=S.audioCtx.createOscillator(),gn=S.audioCtx.createGain();
+      o.frequency.value=clamp(1800,20,20000);o.connect(gn);gn.connect(S.audioCtx.destination);
+      gn.gain.setValueAtTime(.001,S.audioCtx.currentTime);gn.gain.exponentialRampToValueAtTime(.25,S.audioCtx.currentTime+.01);
+      gn.gain.exponentialRampToValueAtTime(.001,S.audioCtx.currentTime+.18);o.start();o.stop(S.audioCtx.currentTime+.2);}
+  }
+  $('#ping',p).onclick=async()=>{await initAudio();ping();};
+  $('#autop',p).onclick=e=>{auto=!auto;e.target.classList.toggle('on',auto);};
+  let last=0;
+  p.draw=()=>{
+    const DPR=devicePixelRatio;
+    const w=cv.width=cv.clientWidth*DPR,h=cv.height=cv.clientHeight*DPR;
+    const cx=w/2,cy=h/2,R=Math.min(cx,cy)*.92;
+    g.fillStyle='rgba(2,0,2,.3)';g.fillRect(0,0,w,h);
+    g.strokeStyle='rgba(235,235,240,.12)';for(let i=1;i<=5;i++){g.beginPath();g.arc(cx,cy,R*i/5,0,7);g.stroke();}
+    if(auto&&performance.now()-last>1400){last=performance.now();ping();}
+    rings=rings.filter(rg=>rg.a>.02);
+    for(const rg of rings){rg.r+=.0065;rg.a*=.985;
+      g.strokeStyle=`rgba(235,235,240,${rg.a})`;g.lineWidth=2*DPR;
+      g.beginPath();g.arc(cx,cy,rg.r*R,0,7);g.stroke();}
+    // rotating bearing sweep
+    sweep=(sweep+0.012)%(Math.PI*2);
+    const lg=g.createRadialGradient(cx,cy,0,cx,cy,R);
+    lg.addColorStop(0,'rgba(224,16,32,.30)');lg.addColorStop(1,'rgba(224,16,32,0)');
+    g.save();g.beginPath();g.moveTo(cx,cy);g.arc(cx,cy,R,sweep-.38,sweep);g.closePath();g.fillStyle=lg;g.fill();g.restore();
+    g.strokeStyle='rgba(224,16,32,.9)';g.lineWidth=1.6*DPR;g.beginPath();
+    g.moveTo(cx,cy);g.lineTo(cx+Math.cos(sweep)*R,cy+Math.sin(sweep)*R);g.stroke();
+    // contacts: light up as the sweep passes, then collect labels
+    const now=performance.now(),labels=[];
+    for(const d of S.devices){const a=d.ang*Math.PI/180;const x=cx+Math.cos(a)*d.r*R,y=cy+Math.sin(a)*d.r*R;
+      let da=Math.abs(((a-sweep+Math.PI*3)%(Math.PI*2))-Math.PI);
+      if(da<0.11)d.sonarLit=now;
+      const lit=d.sonarLit&&now-d.sonarLit<2400;
+      g.fillStyle=d.moving?'rgba(224,16,32,1)':'rgba(235,235,240,.9)';
+      g.beginPath();g.arc(x,y,4*DPR,0,7);g.fill();
+      if(lit){const al=clamp(1-(now-d.sonarLit)/2400,0,1);
+        const nm=(d.vendor||d.type||'RF');
+        labels.push({x,y,al,text:nm+' · '+d.mac.slice(-8)+(d.moving?' ▸MOV':' ·STA')});}}
+    // place labels with vertical anti-overlap
+    labels.sort((a,b)=>a.y-b.y);
+    const lh=12*DPR;let lastY=-1e9;
+    g.font=(9*DPR)+'px monospace';g.textAlign='left';g.textBaseline='middle';
+    for(const L of labels){let ly=L.y;if(ly-lastY<lh)ly=lastY+lh;lastY=ly;
+      const tw=g.measureText(L.text).width;
+      let lx=L.x+8*DPR;if(lx+tw>w-4*DPR)lx=L.x-8*DPR-tw;
+      g.strokeStyle=`rgba(224,16,32,${.45*L.al})`;g.lineWidth=1*DPR;
+      g.beginPath();g.moveTo(L.x,L.y);g.lineTo(lx<L.x?lx+tw:lx,ly);g.stroke();
+      g.fillStyle=`rgba(255,255,255,${.3+.65*L.al})`;g.fillText(L.text,lx,ly);}
+    g.fillStyle='rgba(224,16,32,.95)';g.beginPath();g.arc(cx,cy,4*DPR,0,7);g.fill();
+  };
+});
+
+/* ================================================================
+   PAGE 7 — HEATMAP
+   ================================================================ */
+definePage('heat','HEATMAP',IC.heat,(p)=>{
+  p.innerHTML=`<div class="hd"><h2>Energy Heatmap</h2><span class="sub">spatial energy · mic-driven</span>
+    <div class="sp"></div><span class="chip">peak <b id="hpk">0</b></span></div>
+    <div class="grow"><canvas id="hc" data-pt="h"></canvas></div>`;
+  const cv=$('#hc',p),g=cv.getContext('2d');const GX=24,GY=16;let grid=new Float32Array(GX*GY);
+  p.draw=()=>{
+    const w=cv.width=cv.clientWidth*devicePixelRatio,h=cv.height=cv.clientHeight*devicePixelRatio;
+    const t=performance.now()/1000;
+    for(let y=0;y<GY;y++)for(let x=0;x<GX;x++){const i=y*GX+x;
+      const b=S.bands[(x+y*2)%S.bands.length];
+      const wave=(Math.sin(x*.5+t*2)+Math.cos(y*.6-t*1.5))*.25+.5;
+      grid[i]=grid[i]*.82+(b*wave+S.micLevel*.4)*.18;}
+    const cw=w/GX,ch=h/GY;let pk=0;
+    for(let y=0;y<GY;y++)for(let x=0;x<GX;x++){const v=grid[y*GX+x];pk=Math.max(pk,v);
+      g.fillStyle=heatColor(v);g.globalAlpha=.9;g.fillRect(x*cw,y*ch,cw+1,ch+1);}
+    g.globalAlpha=1;$('#hpk',p).textContent=fmt(pk,2);
+  };
+});
+
+/* ================================================================
+   PAGE 8 — MESH / NODE GRAPH
+   ================================================================ */
+definePage('mesh','MESH',IC.mesh,(p)=>{
+  p.innerHTML=`<div class="hd"><h2>Node Mesh</h2><span class="sub">devices &amp; links · tap node</span>
+    <div class="sp"></div><span class="chip">nodes <b id="mn">0</b></span></div>
+    <div class="grow"><canvas id="mc" data-pt="m"></canvas><div class="mini">demo topology · from SDR survey</div></div>`;
+  const cv=$('#mc',p),g=cv.getContext('2d');
+  let nodes=[],links=[];
+  function build(){
+    nodes=[{id:'GATEWAY',x:.5,y:.5,fixed:true,k:'gw'}];
+    S.devices.forEach((d,i)=>{const a=i/S.devices.length*6.28;
+      nodes.push({id:d.mac.slice(-8),mac:d.mac,x:.5+Math.cos(a)*.3,y:.5+Math.sin(a)*.3,
+        vx:0,vy:0,k:d.type,rssi:d.rssi,vendor:d.vendor});});
+    links=[];for(let i=1;i<nodes.length;i++){links.push([0,i]);
+      if(Math.random()<.4&&i>1)links.push([i,1+((Math.random()*(nodes.length-1))|0)]);}
+  }
+  build();setInterval(build,6000);
+  cv.addEventListener('pointerdown',e=>{const r=cv.getBoundingClientRect();
+    const px=(e.clientX-r.left)/r.width,py=(e.clientY-r.top)/r.height;
+    let best=null,bd=1;for(const n of nodes){const dd=Math.hypot(n.x-px,n.y-py);if(dd<bd&&dd<.06){bd=dd;best=n;}}
+    if(best)showPop(e.clientX,e.clientY,best.k==='gw'?'GATEWAY':'MESH NODE',[
+      ['ID',best.id],['MAC',best.mac||'—'],['Type',best.k],['RSSI',(best.rssi||'—')+' dBm'],
+      ['Vendor',best.vendor||'—']]);});
+  p.draw=()=>{
+    const w=cv.width=cv.clientWidth*devicePixelRatio,h=cv.height=cv.clientHeight*devicePixelRatio;
+    g.fillStyle='rgba(3,9,13,.4)';g.fillRect(0,0,w,h);
+    // simple force
+    for(let i=1;i<nodes.length;i++){const n=nodes[i];n.vx=(n.vx||0)*.9;n.vy=(n.vy||0)*.9;
+      for(let j=1;j<nodes.length;j++)if(i!==j){const o=nodes[j];let dx=n.x-o.x,dy=n.y-o.y,d=Math.hypot(dx,dy)+.001;
+        const f=.0004/(d*d);n.vx+=dx/d*f;n.vy+=dy/d*f;}
+      const dx=.5-n.x,dy=.5-n.y;n.vx+=dx*.002;n.vy+=dy*.002;
+      n.x=clamp(n.x+n.vx,.06,.94);n.y=clamp(n.y+n.vy,.08,.92);}
+    g.lineWidth=1*devicePixelRatio;
+    for(const[a,b] of links){const A=nodes[a],B=nodes[b];if(!A||!B)continue;
+      g.strokeStyle='rgba(235,235,240,.25)';g.beginPath();g.moveTo(A.x*w,A.y*h);g.lineTo(B.x*w,B.y*h);g.stroke();
+      const t=(performance.now()/900+a*.1)%1;g.fillStyle='rgba(255,42,58,.8)';
+      g.beginPath();g.arc(A.x*w+(B.x-A.x)*w*t,A.y*h+(B.y-A.y)*h*t,1.6*devicePixelRatio,0,7);g.fill();}
+    for(const n of nodes){const x=n.x*w,y=n.y*h,gw=n.k==='gw';
+      g.fillStyle=gw?'rgba(255,176,32,.95)':'rgba(235,235,240,.9)';
+      g.beginPath();g.arc(x,y,(gw?8:5)*devicePixelRatio,0,7);g.fill();
+      g.strokeStyle=gw?'rgba(255,176,32,.4)':'rgba(235,235,240,.3)';g.lineWidth=1*devicePixelRatio;
+      g.beginPath();g.arc(x,y,(gw?13:9)*devicePixelRatio,0,7);g.stroke();
+      g.fillStyle='rgba(235,235,240,.65)';g.font=(8*devicePixelRatio)+'px monospace';g.textAlign='center';
+      g.fillText(n.id,x,y+(gw?22:16)*devicePixelRatio);}
+    $('#mn',p).textContent=nodes.length;
+  };
+});
+
+/* ================================================================
+   PAGE 9 — CSI CHANNEL STATE  (presence + micro-motion from IMU)
+   ================================================================ */
+definePage('csi','CSI',IC.csi,(p)=>{
+  p.innerHTML=`<div class="hd"><h2>Channel State</h2><span class="sub">subcarrier amplitude · presence</span>
+    <div class="sp"></div><button class="btn" id="csiEn">◉ ARM</button></div>
+    <div class="grow"><canvas id="csc" data-pt="csi"></canvas>
+      <div class="legend" id="cslg">presence —</div>
+      <div class="mini">micro-motion from on-board IMU · pipe ESP32 CSI via the feed input below</div></div>
+    <div class="ctrls" style="flex-direction:column;align-items:stretch">
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+        <span class="chip">PRESENCE <b id="csp">0%</b></span>
+        <span class="chip">MICRO-OSC <b id="cso">0.0 Hz</b></span>
+        <span class="chip">VIBRATION <b id="csv">0</b></span></div>
+      <div style="display:flex;gap:6px;margin-top:6px">
+        <input id="csfeed" type="text" placeholder="ws://esp32.local:81  (your CSI stream)" style="flex:1">
+        <button class="btn" id="csconn">CONNECT</button></div>
+    </div>`;
+  $('#csiEn',p).onclick=async()=>{await requestSensors();$('#csiEn',p).classList.add('on');
+    toast('IMU armed — micro-motion feeds CSI subcarriers');};
+  $('#csconn',p).onclick=()=>{const u=$('#csfeed',p).value.trim();
+    if(!u){toast('Enter your ESP32 CSI websocket URL');return;}
+    try{const ws=new WebSocket(u);ws.onopen=()=>toast('CSI feed connected: '+u);
+      ws.onerror=()=>toast('<span class="warn">Feed unreachable</span> — using IMU model');
+      ws.onmessage=ev=>{try{const a=JSON.parse(ev.data);if(Array.isArray(a))for(let i=0;i<Math.min(64,a.length);i++)S.csi.subc[i]=a[i];}catch(e){}};
+    }catch(e){toast('Bad URL');}};
+  const cv=$('#csc',p),g=cv.getContext('2d');let img=null;
+  p.draw=()=>{
+    // derive subcarriers from IMU vibration + audio when no live feed
+    const t=performance.now()/1000;
+    const vib=S.imu.vib, lvl=S.micLevel;
+    for(let i=0;i<64;i++){
+      const base=Math.exp(-Math.abs(i-32)/18);
+      const osc=Math.sin(t*(4+ (vib*40)) + i*.3)*.5+.5;
+      S.csi.subc[i]=S.csi.subc[i]*.6 + (base*(.3+osc*.5)+vib*3+lvl*.2)*.4;}
+    S.csi.presence=clamp(S.csi.presence*.9 + (vib*6+lvl*.5)*.1,0,1);
+    S.csi.rate=.6+vib*20; S.csi.phase+=.02;
+    // waterfall of subcarriers
+    const w=Math.round(cv.clientWidth*devicePixelRatio),h=Math.round(cv.clientHeight*devicePixelRatio);
+    if(cv.width!==w||cv.height!==h){cv.width=w;cv.height=h;g.fillStyle='#0a0a0c';g.fillRect(0,0,w,h);}
+    const prev=g.getImageData(0,0,w,h-1);g.putImageData(prev,0,1);
+    for(let x=0;x<w;x++){const v=S.csi.subc[(x/w*64)|0]||0;g.fillStyle=heatColor(clamp(v,0,1));g.fillRect(x,0,1,1);}
+    $('#csp',p).textContent=(S.csi.presence*100|0)+'%';
+    $('#cso',p).textContent=fmt(S.csi.rate,1)+' Hz';
+    $('#csv',p).textContent=fmt(S.imu.vib,3);
+    $('#cslg',p).innerHTML=`presence ${S.csi.presence>.4?'<span class="sig">DETECTED</span>':'<span class="warn">scanning</span>'}<br>osc ${fmt(S.csi.rate,1)} Hz`;
+  };
+});
+
+/* ================================================================
+   PAGE 10 — UV / AURORA visual field
+   ================================================================ */
+definePage('uv','UV FIELD',IC.uv,(p)=>{
+  p.innerHTML=`<div class="hd"><h2>UV / Aurora Field</h2><span class="sub">blacklight visualizer · reactive</span></div>
+    <div class="grow"><canvas id="uc" data-pt="u"></canvas></div>`;
+  const cv=$('#uc',p),g=cv.getContext('2d');let t=0;
+  p.draw=()=>{const w=cv.width=cv.clientWidth*devicePixelRatio,h=cv.height=cv.clientHeight*devicePixelRatio;
+    g.fillStyle='rgba(4,0,10,.18)';g.fillRect(0,0,w,h);t+=.01;
+    for(let i=0;i<60;i++){const b=S.bands[i%S.bands.length];
+      const x=(Math.sin(t*1.2+i*.5)*.5+.5)*w;const y=((i/60)+Math.sin(t+i)*.04)*h;
+      const r=(4+b*40)*devicePixelRatio;const hue=348+i*0.5+b*25;
+      const grd=g.createRadialGradient(x,y,0,x,y,r);
+      grd.addColorStop(0,`hsla(${hue},100%,65%,${.25+b*.6})`);grd.addColorStop(1,'hsla(352,100%,50%,0)');
+      g.fillStyle=grd;g.beginPath();g.arc(x,y,r,0,7);g.fill();}
+  };
+});
+
+/* ================================================================
+   PAGE 11 — SOUND ANALYSIS (scope + spectrum)
+   ================================================================ */
+definePage('sound','SOUND',IC.sound,(p)=>{
+  p.innerHTML=`<div class="hd"><h2>Sound Analysis</h2><span class="sub">scope · spectrum · waveform ID</span>
+    <div class="sp"></div><button class="btn" id="sdEn">🎙 MIC OFF</button></div>
+    <div class="grow"><canvas id="sdc" data-pt="sd"></canvas>
+      <div class="legend" id="sdwave">waveform: —</div>
+      <div class="mini" id="sdv">level —</div></div>`;
+  const btn=$('#sdEn',p);
+  btn.onclick=async()=>{
+    if(S.audioReady===true){ // turn mic OFF
+      if(S.audioCtx){try{S.audioCtx.close();}catch(e){}} S.audioReady=false;S.analyser=null;
+      $('#pMic').className='pill';$('#pMic').textContent='MIC ○';btn.classList.remove('on');btn.textContent='🎙 MIC OFF';
+    } else { const ok=await initAudio(); btn.classList.toggle('on',S.audioReady===true);
+      btn.textContent=S.audioReady===true?'🎙 MIC ON':'🎙 MIC OFF'; }
+  };
+  const cv=$('#sdc',p),g=cv.getContext('2d');
+  // classify the dominant live waveform shape from the time-domain buffer
+  function classifyWave(){
+    if(S.audioReady!==true||!S.timeData)return '—';
+    const N=S.timeData.length;let sum=0,sumsq=0,peak=0,zc=0,prev=0;
+    for(let i=0;i<N;i++){const v=(S.timeData[i]-128)/128;sum+=Math.abs(v);sumsq+=v*v;
+      if(Math.abs(v)>peak)peak=Math.abs(v);if(i&&((v>=0)!==(prev>=0)))zc++;prev=v;}
+    if(peak<0.03)return 'silent';
+    const rms=Math.sqrt(sumsq/N), crest=peak/(rms||1e-6), form=(sum/N)/(rms||1e-6);
+    // crest factor: sine≈1.41, square≈1.0, triangle≈1.73, noise/voice high & irregular
+    if(crest<1.2) return 'square / clipped';
+    if(crest<1.55) return 'sine (pure tone)';
+    if(crest<1.9) return 'triangle / sawtooth';
+    if(form<0.6) return 'impulsive / percussive';
+    return 'complex / voice / noise';
+  }
+  p.draw=()=>{const w=cv.width=cv.clientWidth*devicePixelRatio,h=cv.height=cv.clientHeight*devicePixelRatio;
+    g.fillStyle='#0e0e12';g.fillRect(0,0,w,h);const mid=h*.42;
+    const bw=w/S.bands.length;for(let b=0;b<S.bands.length;b++){const v=S.bands[b];
+      g.fillStyle=heatColor(v);g.fillRect(b*bw,h-v*(h*.5),bw-1,v*(h*.5));}
+    g.strokeStyle='rgba(255,42,58,.9)';g.lineWidth=1.4*devicePixelRatio;g.beginPath();
+    if(S.audioReady===true&&S.timeData){for(let i=0;i<S.timeData.length;i++){
+      const x=i/S.timeData.length*w;const y=mid+((S.timeData[i]-128)/128)*(h*.3);i?g.lineTo(x,y):g.moveTo(x,y);}}
+    else{for(let i=0;i<w;i+=2){const y=mid+Math.sin(i*.05+performance.now()/200)*S.micLevel*h*.3;i?g.lineTo(i,y):g.moveTo(i,y);}}
+    g.stroke();
+    g.strokeStyle='rgba(255,42,58,.15)';g.beginPath();g.moveTo(0,mid);g.lineTo(w,mid);g.stroke();
+    $('#sdwave',p).textContent='waveform: '+classifyWave();
+    $('#sdv',p).textContent=`level ${fmt(S.micLevel*100,0)}%  peak ${fmt(S.micPeak*100,0)}%  ${S.audioReady===true?'LIVE':'off'}`;
+  };
+});
+
+/* ================================================================
+   PAGE 12 — SIGNAL / TONE GENERATOR  (acoustic, honest range)
+   ================================================================ */
+definePage('gen','GENERATOR',IC.gen,(p)=>{
+  p.innerHTML=`<div class="hd"><h2>Waveform Generator</h2><span class="sub">acoustic 20Hz–20kHz · real output</span>
+    <div class="sp"></div><button class="btn danger" id="gPlay">▶ EMIT</button></div>
+    <div class="grow"><canvas id="gc" data-pt="g"></canvas>
+      <div class="legend" id="glg">—</div>
+      <div class="mini warn">Phone hardware emits sound only. RF/GHz &amp; 6G are not physically possible from a handset — see notes.</div></div>
+    <div class="ctrls" style="flex-direction:column;align-items:stretch">
+      <div id="gwf" style="display:flex;gap:5px;flex-wrap:wrap"></div>
+      <label class="sl" style="width:100%;margin-top:6px">FREQ <input id="gfr" type="range" min="20" max="20000" value="440"> <b id="gfv" style="color:var(--cyan2);min-width:64px">440 Hz</b></label>
+      <label class="sl" style="width:100%">VOL <input id="gvl" type="range" min="0" max="100" value="22"> <b id="gvv" style="min-width:40px">22%</b></label>
+      <div id="gburst" style="display:flex;gap:5px;flex-wrap:wrap;margin-top:4px"></div>
+    </div>`;
+  const waves=[['Sine','sine'],['Square','square'],['Triangle','triangle'],['Sawtooth','sawtooth'],
+    ['Gaussian Pulse','gauss'],['Raised Cosine','rcos'],['Preamble Burst','preamble'],['NDP Null','ndp']];
+  let wf='sine',vol=.22,freq=440,osc=null,gain=null,playing=false,bursting=null;
+  const gwf=$('#gwf',p);
+  waves.forEach(([n,v])=>{const b=el('button','btn'+(v===wf?' on':''),n);
+    b.onclick=()=>{wf=v;[...gwf.children].forEach(c=>c.classList.remove('on'));b.classList.add('on');if(playing)retune();};gwf.appendChild(b);});
+  $('#gfr',p).oninput=e=>{freq=+e.target.value;$('#gfv',p).textContent=freqLabel(freq);if(playing)retune();};
+  $('#gvl',p).oninput=e=>{vol=+e.target.value/100;$('#gvv',p).textContent=e.target.value+'%';
+    if(gain)gain.gain.value=vol;};
+  // burst/packet modes
+  const gb=$('#gburst',p);
+  [['Single','single'],['Burst ×8','b8'],['Chirp','chirp'],['Preamble+NDP','pre']].forEach(([n,m])=>{
+    const b=el('button','btn',n);b.onclick=()=>fireBurst(m);gb.appendChild(b);});
+  function makeOsc(){const ctx=S.audioCtx;osc=ctx.createOscillator();gain=ctx.createGain();
+    gain.gain.value=vol;osc.connect(gain);gain.connect(ctx.destination);
+    osc.type=(wf==='gauss'||wf==='rcos'||wf==='preamble'||wf==='ndp')?'sine':wf;osc.frequency.value=clamp(freq,20,20000);}
+  function retune(){if(osc){osc.type=(wf==='gauss'||wf==='rcos'||wf==='preamble'||wf==='ndp')?'sine':wf;
+    osc.frequency.setValueAtTime(clamp(freq,20,20000),S.audioCtx.currentTime);}}
+  $('#gPlay',p).onclick=async()=>{await initAudio();if(S.audioReady!==true){toast('Need mic/audio permission to emit');return;}
+    if(playing){osc&&osc.stop();playing=false;$('#gPlay',p).classList.remove('on');$('#gPlay',p).textContent='▶ EMIT';return;}
+    makeOsc();osc.start();playing=true;$('#gPlay',p).classList.add('on');$('#gPlay',p).textContent='■ STOP';};
+  async function fireBurst(mode){await initAudio();if(S.audioReady!==true)return;
+    const ctx=S.audioCtx,now=ctx.currentTime;
+    const env=(o,g,t0,dur,shape)=>{g.gain.setValueAtTime(.0001,t0);
+      if(shape==='gauss'){g.gain.exponentialRampToValueAtTime(vol,t0+dur*.5);g.gain.exponentialRampToValueAtTime(.0001,t0+dur);}
+      else{g.gain.exponentialRampToValueAtTime(vol,t0+.004);g.gain.setValueAtTime(vol,t0+dur-.004);g.gain.exponentialRampToValueAtTime(.0001,t0+dur);}
+      o.start(t0);o.stop(t0+dur);};
+    const mk=(f,t0,dur,shape)=>{const o=ctx.createOscillator(),g=ctx.createGain();o.type='sine';o.frequency.value=clamp(f,20,20000);o.connect(g);g.connect(ctx.destination);env(o,g,t0,dur,shape);};
+    if(mode==='single')mk(freq,now,.15,wf==='gauss'?'gauss':'flat');
+    else if(mode==='b8')for(let i=0;i<8;i++)mk(freq,now+i*.09,.05,'flat');
+    else if(mode==='chirp'){const o=ctx.createOscillator(),g=ctx.createGain();o.type='sine';
+      o.frequency.setValueAtTime(clamp(freq,20,20000),now);o.frequency.exponentialRampToValueAtTime(clamp(freq*4,20,20000),now+.4);
+      o.connect(g);g.connect(ctx.destination);env(o,g,now,.45,'flat');}
+    else if(mode==='pre'){ // "preamble + NDP" acoustic analogue
+      for(let i=0;i<4;i++)mk(freq,now+i*.05,.03,'flat'); // short training symbols
+      mk(freq*1.5,now+.26,.02,'gauss'); // null data packet marker
+    }
+    toast('Emitted '+mode+' @ '+freqLabel(freq));
+  }
+  const cv=$('#gc',p),g=cv.getContext('2d');let ph=0;
+  p.draw=()=>{const w=cv.width=cv.clientWidth*devicePixelRatio,h=cv.height=cv.clientHeight*devicePixelRatio;
+    g.fillStyle='#0e0e12';g.fillRect(0,0,w,h);const mid=h/2;
+    g.strokeStyle='rgba(255,42,58,.12)';g.beginPath();g.moveTo(0,mid);g.lineTo(w,mid);g.stroke();
+    g.strokeStyle='rgba(255,42,58,.95)';g.lineWidth=1.8*devicePixelRatio;g.beginPath();
+    ph+=.04;const cycles=6;
+    for(let x=0;x<w;x++){const t=x/w*cycles*Math.PI*2+ph;let y;
+      switch(wf){
+        case 'square':y=Math.sign(Math.sin(t));break;
+        case 'triangle':y=2/Math.PI*Math.asin(Math.sin(t));break;
+        case 'sawtooth':y=((t/Math.PI)%2)-1;break;
+        case 'gauss':{const u=((x/w)*6-3);y=Math.exp(-u*u/.4)*Math.sin(t*2);break;}
+        case 'rcos':{const u=(x/w);y=.5*(1-Math.cos(2*Math.PI*u))*Math.sin(t);break;}
+        case 'preamble':{const seg=(x/w*8|0)%2;y=seg*Math.sin(t*2);break;}
+        case 'ndp':{y=(x/w>.4&&x/w<.44)?0:Math.sin(t)*.15;break;}
+        default:y=Math.sin(t);}
+      const py=mid-y*h*.34;x?g.lineTo(x,py):g.moveTo(x,py);}
+    g.stroke();
+    $('#glg',p).innerHTML=`${wf} · ${freqLabel(freq)}<br>${playing?'<span class="sig">EMITTING</span>':'idle'}`;
+  };
+});
+
+/* ================================================================
+   PAGE 13 — BURST / STROBE FX  (visual only, transmits nothing)
+   ================================================================ */
+definePage('burst','BURST FX',IC.burst,(p)=>{
+  p.innerHTML=`<div class="hd"><h2>Burst / Strobe FX</h2><span class="sub">visual effect only</span></div>
+    <div class="grow" style="display:flex;flex-direction:column">
+      <canvas id="bc" data-pt="b" style="flex:1"></canvas>
+    </div>
+    <div class="ctrls" style="flex-direction:column;align-items:stretch">
+      <div style="background:rgba(255,176,32,.08);border:1px solid rgba(255,176,32,.4);border-radius:8px;padding:8px;font-size:10px;color:var(--amber);line-height:1.5">
+        ⚠ This is a <b>screen/flash visual effect</b>. It transmits no RF and cannot blind or disable
+        cameras, radar, or IR sensors — a phone physically can't, and doing so would be an illegal jammer.
+        Use it as a camera-strobe / signaling visual only.</div>
+      <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:7px" id="brow"></div>
+      <label class="sl" style="width:100%">RATE <input id="brate" type="range" min="1" max="24" value="8"><b id="brv">8 Hz</b></label>
+      <label class="sl" style="width:100%">DURATION <input id="bdur" type="range" min="1" max="100" value="20"><b id="bdv">2.0 s</b></label>
+    </div>`;
+  let strobing=false,rate=8,dur=2,pattern='flash',stTimer=null,cnt=0;
+  $('#brate',p).oninput=e=>{rate=+e.target.value;$('#brv',p).textContent=rate+' Hz';};
+  $('#bdur',p).oninput=e=>{dur=+e.target.value/10;$('#bdv',p).textContent=fmt(dur,1)+' s';};
+  const brow=$('#brow',p);
+  [['Flash','flash'],['Strobe','strobe'],['RGB Scan','rgb'],['Camera Pop','pop']].forEach(([n,m])=>{
+    const b=el('button','btn'+(m==='flash'?' on':''),n);b.onclick=()=>{pattern=m;
+      [...brow.children].forEach(c=>c.classList.remove('on'));b.classList.add('on');fire();};brow.appendChild(b);});
+  function fire(){
+    const fl=$('#flash');strobing=true;cnt=0;const end=performance.now()+dur*1000;
+    clearInterval(stTimer);
+    stTimer=setInterval(()=>{if(performance.now()>end){clearInterval(stTimer);fl.style.opacity=0;strobing=false;return;}
+      cnt++;
+      if(pattern==='flash'){fl.style.background='#fff';fl.style.opacity=fl.style.opacity>0?0:1;}
+      else if(pattern==='strobe'){fl.style.background='#fff';fl.style.opacity=cnt%2?1:0;}
+      else if(pattern==='rgb'){fl.style.background=['#ff0040','#00ff88','#0088ff'][cnt%3];fl.style.opacity=.9;}
+      else{fl.style.background='#fff';fl.style.opacity=1;setTimeout(()=>fl.style.opacity=0,40);}
+    },1000/rate);
+    toast('Strobe FX '+dur+'s @ '+rate+'Hz (visual only)');
+  }
+  const cv=$('#bc',p),g=cv.getContext('2d');
+  p.draw=()=>{const w=cv.width=cv.clientWidth*devicePixelRatio,h=cv.height=cv.clientHeight*devicePixelRatio;
+    g.fillStyle='#0e0e12';g.fillRect(0,0,w,h);
+    g.fillStyle=strobing?'rgba(255,176,32,.9)':'rgba(150,150,156,.7)';g.textAlign='center';
+    g.font=(16*devicePixelRatio)+'px monospace';
+    g.fillText(strobing?'◉ EMITTING STROBE FX':'tap a pattern to fire',w/2,h/2);
+    g.font=(10*devicePixelRatio)+'px monospace';g.fillStyle='rgba(150,150,156,.6)';
+    g.fillText('visual output · no transmission',w/2,h/2+22*devicePixelRatio);};
+});
+
+/* ================================================================
+   PAGE 14 — EMF MAP (magnetometer-derived field estimate)
+   ================================================================ */
+definePage('emf','EMF·MAG',IC.emf,(p)=>{
+  p.innerHTML=`<div class="hd"><h2>EMF / Magnetometer</h2><span class="sub">real µT field · anomaly detect</span>
+    <div class="sp"></div><button class="btn" id="eEn">◉ START</button>
+    <button class="btn" id="eZero">⌖ ZERO</button></div>
+    <div class="grow"><canvas id="ec" data-pt="e"></canvas>
+      <div class="legend" id="eleg">—</div><div class="mini" id="emv">tap START</div></div>
+    <div class="ctrls">
+      <span class="chip">|B| <b id="emag">—</b> µT</span><span class="chip">X <b id="ex">—</b></span>
+      <span class="chip">Y <b id="ey">—</b></span><span class="chip">Z <b id="ez">—</b></span>
+      <span class="chip">LIGHT <b id="elux">—</b> lx</span><span class="chip">Δ <b id="eano">—</b></span></div>`;
+  let magS=null,lightS=null,base=null,hist=new Array(240).fill(0),real=false;
+  function start(){
+    try{ if('Magnetometer' in window){ magS=new Magnetometer({frequency:25});
+      magS.onreading=()=>{real=true;S.mag={x:magS.x,y:magS.y,z:magS.z,mag:Math.hypot(magS.x,magS.y,magS.z)};
+        $('#pMag').className='pill on';$('#pMag').textContent='MAG ●';};
+      magS.onerror=()=>{real=false;}; magS.start(); } }catch(e){}
+    try{ if('AmbientLightSensor' in window){ lightS=new AmbientLightSensor({frequency:4});
+      lightS.onreading=()=>{S.lux=lightS.illuminance;}; lightS.start(); } }catch(e){}
+    requestSensors();
+  }
+  $('#eEn',p).onclick=()=>{start();$('#eEn',p).classList.add('on');
+    if(!('Magnetometer'in window))toast('No raw magnetometer API here — open full-screen on Android Chrome for live µT.',6000);};
+  $('#eZero',p).onclick=()=>{base=(S.mag&&S.mag.mag)||null;toast('Baseline zeroed');};
+  const cv=$('#ec',p),g=cv.getContext('2d');
+  p.draw=()=>{const w=cv.width=cv.clientWidth*devicePixelRatio,h=cv.height=cv.clientHeight*devicePixelRatio;
+    g.fillStyle='#0e0e12';g.fillRect(0,0,w,h);
+    const mg=(S.mag&&S.mag.mag)||0; if(base==null&&mg>0)base=mg;
+    const ano=base!=null?Math.abs(mg-base):0;
+    hist.push(mg);if(hist.length>240)hist.shift();
+    const mx=Math.max(80,...hist)*1.1;
+    if(ano>15){g.fillStyle='rgba(255,42,58,'+clamp(ano/80,0,.28)+')';g.fillRect(0,0,w,h);}
+    if(base!=null){const by=h-(base/mx)*h*0.9;g.strokeStyle='rgba(235,235,240,.3)';g.setLineDash([5,5]);
+      g.beginPath();g.moveTo(0,by);g.lineTo(w,by);g.stroke();g.setLineDash([]);}
+    g.strokeStyle='rgba(255,42,58,.9)';g.lineWidth=1.6*devicePixelRatio;g.beginPath();
+    for(let i=0;i<hist.length;i++){const x=i/hist.length*w,y=h-(hist[i]/mx)*h*0.9;i?g.lineTo(x,y):g.moveTo(x,y);}
+    g.stroke();
+    $('#emag',p).textContent=mg?fmt(mg,1):'—';
+    $('#ex',p).textContent=S.mag?fmt(S.mag.x,0):'—';$('#ey',p).textContent=S.mag?fmt(S.mag.y,0):'—';$('#ez',p).textContent=S.mag?fmt(S.mag.z,0):'—';
+    $('#elux',p).textContent=S.lux!=null?fmt(S.lux,0):'n/a';
+    $('#eano',p).textContent=fmt(ano,1);
+    $('#eleg',p).innerHTML=real?('LIVE µT'+(ano>15?' · <span style="color:#e01020">ANOMALY</span>':'')):'orientation fallback';
+    $('#emv',p).textContent=real?`magnetic field ${fmt(mg,1)} µT (Earth ≈ 25–65)`:'raw µT needs Android Chrome full-screen';
+  };
+});
+
+/* ================================================================
+   SDR BRIDGE — RTL-SDR (WebUSB) / HackRF·Pi·AWS (WebSocket)
+   On-device FFT turns incoming IQ into the live spectrum.
+   ================================================================ */
+function fft(re,im){ // in-place iterative radix-2 (n = power of 2)
+  const n=re.length;
+  for(let i=1,j=0;i<n;i++){let bit=n>>1;for(;j&bit;bit>>=1)j^=bit;j^=bit;
+    if(i<j){const tr=re[i];re[i]=re[j];re[j]=tr;const ti=im[i];im[i]=im[j];im[j]=ti;}}
+  for(let len=2;len<=n;len<<=1){const a=-2*Math.PI/len,wr=Math.cos(a),wi=Math.sin(a);
+    for(let i=0;i<n;i+=len){let cr=1,ci=0;
+      for(let k=0;k<len>>1;k++){const ur=re[i+k],ui=im[i+k];
+        const xr=re[i+k+(len>>1)],xi=im[i+k+(len>>1)];
+        const vr=xr*cr-xi*ci,vi=xr*ci+xi*cr;
+        re[i+k]=ur+vr;im[i+k]=ui+vi;re[i+k+(len>>1)]=ur-vr;im[i+k+(len>>1)]=ui-vi;
+        const ncr=cr*wr-ci*wi;ci=cr*wi+ci*wr;cr=ncr;}}}
+}
+function iqToBands(buf){ // interleaved u8 I,Q (bias 127.5) → power spectrum into S.bands
+  const N=1024; if(buf.length<2*N)return;
+  const re=new Float32Array(N),im=new Float32Array(N);
+  for(let i=0;i<N;i++){const w=0.5-0.5*Math.cos(2*Math.PI*i/(N-1));
+    re[i]=((buf[2*i]-127.5)/127.5)*w; im[i]=((buf[2*i+1]-127.5)/127.5)*w;}
+  fft(re,im);
+  const bn=S.bands.length;
+  for(let b=0;b<bn;b++){const src=(((b/bn)*N)+(N>>1))%N|0; // fftshift → DC centered
+    const mag=Math.hypot(re[src],im[src])/N; const db=20*Math.log10(mag+1e-9);
+    S.bands[b]=S.bands[b]*0.3+clamp((db+70)/70,0,1)*0.7;}
+  S.bridgeLive=true;S.bridgeTS=performance.now();
+}
+function hash(s){let h=0;for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))>>>0;return h;}
+
+const BRIDGE={
+  ws:null,usb:null,mode:'none',log:[],pill:null,
+  init(){this.pill=el('span','pill','LINK ○');const f=$('#pFreq');if(f)f.before(this.pill);},
+  setStatus(on,label){if(this.pill){this.pill.textContent='LINK '+(on?'●':'○')+(label?' '+label:'');
+    this.pill.className='pill'+(on?' on':'');}},
+  logLine(m){this.log.unshift('['+new Date().toLocaleTimeString('en-GB')+'] '+m);
+    if(this.log.length>90)this.log.pop();window.dispatchEvent(new Event('bridgelog'));},
+  connectWS(url,proto){this.disconnect();
+    try{const ws=proto?new WebSocket(url,proto):new WebSocket(url);ws.binaryType='arraybuffer';
+      this.ws=ws;this.mode='ws';this.setStatus(false,'…');this.logLine('WS connecting '+url);
+      ws.onopen=()=>{this.setStatus(true,'WS');this.logLine('WS open');toast('SDR bridge linked');this.send({cmd:'hello',client:'ALLALONE'});};
+      ws.onclose=()=>{this.setStatus(false);this.logLine('WS closed');S.bridgeLive=false;};
+      ws.onerror=()=>{this.logLine('WS error — check URL/cert');};
+      ws.onmessage=ev=>this.onMessage(ev.data);
+    }catch(e){this.logLine('WS bad URL');toast('Bad WebSocket URL');}},
+  onMessage(data){
+    if(data instanceof ArrayBuffer){iqToBands(new Uint8Array(data));return;}
+    let m;try{m=JSON.parse(data);}catch(e){return;}
+    if(m.t==='spectrum'&&Array.isArray(m.bins)){const bn=S.bands.length,src=m.bins;
+      for(let b=0;b<bn;b++){const v=src[(b/bn*src.length)|0];
+        const nv=v>1?clamp((v+110)/110,0,1):clamp(v,0,1);S.bands[b]=S.bands[b]*0.3+nv*0.7;}
+      if(m.f0)setFreq(m.f0);S.bridgeLive=true;S.bridgeTS=performance.now();}
+    else if(m.t==='devices'&&Array.isArray(m.list)){this.setDevices(m.list);S.bridgeLive=true;S.bridgeTS=performance.now();}
+    else if(m.t==='csi'&&Array.isArray(m.subc)){for(let i=0;i<Math.min(64,m.subc.length);i++)S.csi.subc[i]=m.subc[i];}
+    else if(m.t==='lora'){S.loraLog=S.loraLog||[];S.loraLog.push({dir:'rx',msg:m.msg||'',t:Date.now()});window.dispatchEvent(new Event('lora'));}
+    else if(m.t==='status')this.logLine('◂ '+(m.msg||''));
+    else if(m.t==='ack')this.logLine('✓ '+(m.of||'cmd'));},
+  setDevices(list){const seen=new Set();
+    for(const r of list){const mac=(r.mac||'').toUpperCase();if(!mac)continue;seen.add(mac);
+      let d=S.devices.find(x=>x.mac===mac);
+      const ang=r.ang!=null?r.ang:(d?d.ang:(hash(mac)%360));
+      const rr=r.r!=null?r.r:clamp(((r.rssi!=null?r.rssi:-70)+99)/74,.1,.96);
+      if(!d){S.devices.push({mac,ang,r:rr,rssi:r.rssi!=null?r.rssi:-70,ch:r.ch!=null?r.ch:'-',
+        band:r.band||'2.4G',type:r.type||'RF',vendor:r.vendor||'ext',ext:true,
+        moving:false,still:99,speed:0,trail:[],px:ang,pr:rr,moveUntil:0,tAng:ang,tR:rr});}
+      else{if(r.rssi!=null)d.rssi=r.rssi;if(r.ch!=null)d.ch=r.ch;if(r.band)d.band=r.band;
+        if(r.type)d.type=r.type;if(r.vendor)d.vendor=r.vendor;d.ext=true;
+        if(r.ang!=null)d.ang=r.ang;if(r.r!=null)d.r=r.r;}}
+    S.devices=S.devices.filter(d=>!d.ext||seen.has(d.mac));},
+  send(obj){if(this.ws&&this.ws.readyState===1){this.ws.send(JSON.stringify(obj));
+      this.logLine('▸ '+(obj.cmd||obj.t||'msg')+' '+JSON.stringify(obj).slice(0,60));return true;}
+    toast('No live bridge — command not sent');this.logLine('✕ not linked: '+(obj.cmd||'cmd'));return false;},
+  async connectUSB(){if(!('usb'in navigator)){toast('WebUSB not supported here (use Android Chrome)');return;}
+    try{const dev=await navigator.usb.requestDevice({filters:[{vendorId:0x0bda}]});
+      await dev.open();if(dev.configuration===null)await dev.selectConfiguration(1);
+      await dev.claimInterface(0);this.usb=dev;this.mode='usb';
+      this.setStatus(true,'USB');this.logLine('USB claimed '+(dev.productName||dev.productId));
+      toast('RTL-SDR claimed (experimental) — streaming IQ');this.readUSB(dev);
+    }catch(e){this.logLine('USB '+(e.message||e.name));toast('USB: '+(e.message||e.name));}},
+  async readUSB(dev){const EP=1; // bulk IN; RTL2832U tuner init varies — WS bridge is the robust path
+    while(this.usb===dev){try{const r=await dev.transferIn(EP,16384);
+        if(r.data&&r.data.byteLength)iqToBands(new Uint8Array(r.data.buffer));
+        else await new Promise(res=>setTimeout(res,30));
+      }catch(e){this.logLine('USB read end: '+(e.message||e.name));break;}}},
+  disconnect(){if(this.ws){try{this.ws.close();}catch(e){}this.ws=null;}
+    if(this.usb){try{this.usb.close();}catch(e){}this.usb=null;}
+    this.mode='none';S.bridgeLive=false;this.setStatus(false);},
+};
+
+/* ---- PAGE: SOURCE / BRIDGE ---- */
+definePage('source','SOURCE',`<svg viewBox="0 0 24 24"><path class="stroke" d="M12 2v6M8 4l4 4 4-4"/><rect class="stroke" x="6" y="10" width="12" height="10" rx="2"/><path class="fill" d="M9 14h6v2H9z"/></svg>`,(p)=>{
+  p.innerHTML=`<div class="hd"><h2>SDR Source / Bridge</h2><span class="sub">RTL-SDR · HackRF · Pi · AWS</span></div>
+   <div class="grow scroll" style="padding:10px;display:flex;flex-direction:column;gap:10px">
+     <div class="bcard"><div class="btitle">WebSocket / AWS backend</div>
+       <div class="brow"><input id="wsurl" type="text" placeholder="wss://your-pi.local:8765  ·  wss://xxxx.execute-api.us-east-1.amazonaws.com"></div>
+       <div class="brow"><input id="wsproto" type="text" placeholder="subprotocol / token (optional)">
+         <button class="btn" id="wsc">CONNECT</button><button class="btn" id="wsd">DROP</button></div>
+       <div class="bnote">Your backend runs the radios (rtl_tcp / SoapySDR / hackrf) and pushes frames; the phone renders them and sends control commands. AWS = an API-Gateway/IoT wss endpoint.</div></div>
+     <div class="bcard"><div class="btitle">WebUSB — direct RTL-SDR (experimental)</div>
+       <div class="brow"><button class="btn" id="usbc">◉ CLAIM RTL-SDR DONGLE</button><span class="chip">Android Chrome + USB-OTG</span></div>
+       <div class="bnote">Claims the RTL2832U over USB. The <b>RTL-SDR Blog V4</b> uses an R828D tuner whose init a browser can't fully drive — for the V4, use the WebSocket bridge above: run the included <b>allalone-bridge.py</b> with the V4 (rtl_tcp / SoapySDR), and it streams spectrum + IQ here. That path is rock-solid.</div></div>
+     <div class="bcard"><div class="btitle">Tune active radio</div>
+       <label class="sl">FREQ <input id="tnf" type="range" min="6" max="9.8" step="0.001" value="9.387"><b id="tnfv">2.437 GHz</b></label>
+       <label class="sl">GAIN <input id="tng" type="range" min="0" max="49" value="30"><b id="tngv">30 dB</b></label>
+       <label class="sl">BW <input id="tnb" type="range" min="0.25" max="20" step="0.25" value="2.4"><b id="tnbv">2.4 MHz</b></label>
+       <div class="brow"><button class="btn" id="tnsend">▸ SEND TUNE CMD</button></div></div>
+     <div class="bcard"><div class="btitle">Link log</div>
+       <pre id="blog" style="margin:0;max-height:140px;overflow:auto;font-size:10px;color:var(--grey);white-space:pre-wrap"></pre></div>
+     <div class="bcard"><div class="btitle">Backend protocol (JSON over WS)</div>
+       <pre class="proto">IN  &#8592; {"t":"spectrum","f0":2.437e9,"bw":2.4e6,"bins":[..0..1 or dBm..]}
+IN  &#8592; binary ArrayBuffer = interleaved u8 I/Q  (FFT'd on device)
+IN  &#8592; {"t":"devices","list":[{"mac","rssi","ch","band","type","vendor","ang?","r?"}]}
+IN  &#8592; {"t":"csi","subc":[..64..]}   IN &#8592; {"t":"status|ack","msg|of":"…"}
+OUT &#8594; {"cmd":"tune","freq","gain","bw"}
+OUT &#8594; {"cmd":"scan","band":"2.4|5|sub"}
+OUT &#8594; {"cmd":"tx","freq","wave","durationMs","power"}
+OUT &#8594; {"cmd":"inject","iface","type","count","target","payload"}</pre></div>
+   </div>`;
+  const f=$('#tnf',p),upf=()=>$('#tnfv',p).textContent=freqLabel(Math.pow(10,+f.value));f.oninput=upf;upf();
+  $('#tng',p).oninput=e=>$('#tngv',p).textContent=e.target.value+' dB';
+  $('#tnb',p).oninput=e=>$('#tnbv',p).textContent=e.target.value+' MHz';
+  $('#wsc',p).onclick=()=>{const u=$('#wsurl',p).value.trim();if(!u)return toast('Enter a wss:// URL');
+    BRIDGE.connectWS(u,$('#wsproto',p).value.trim()||undefined);};
+  $('#wsd',p).onclick=()=>BRIDGE.disconnect();
+  $('#usbc',p).onclick=()=>BRIDGE.connectUSB();
+  $('#tnsend',p).onclick=()=>{const freq=Math.pow(10,+f.value);setFreq(freq);
+    BRIDGE.send({cmd:'tune',freq,gain:+$('#tng',p).value,bw:+$('#tnb',p).value*1e6});};
+  const render=()=>{const pre=$('#blog',p);if(pre)pre.textContent=BRIDGE.log.join('\n');};
+  window.addEventListener('bridgelog',render);render();
+});
+
+/* ---- PAGE: TX / INJECT ---- */
+definePage('tx','TX·INJECT',`<svg viewBox="0 0 24 24"><path class="stroke" d="M12 3v18M7 8a7 7 0 000 8M5 6a10 10 0 000 12M17 8a7 7 0 010 8M19 6a10 10 0 010 12"/><circle class="fill" cx="12" cy="12" r="2"/></svg>`,(p)=>{
+  p.innerHTML=`<div class="hd"><h2>TX / Packet Inject</h2><span class="sub">remote control · backend transmits</span></div>
+   <div class="grow scroll" style="padding:10px;display:flex;flex-direction:column;gap:10px">
+     <div class="bcard" style="border-color:rgba(255,176,32,.5)"><div class="bnote" style="color:var(--amber)">⚠ The phone transmits nothing. These are control commands sent to <b>your own authorized hardware</b> over the bridge. Use only on engagements you are licensed to test.</div></div>
+     <div class="bcard"><div class="btitle">RF Transmit (HackRF / SDR)</div>
+       <label class="sl">FREQ <input id="xf" type="range" min="6" max="9.8" step="0.001" value="9.387"><b id="xfv">2.437 GHz</b></label>
+       <div class="brow" id="xwave"></div>
+       <label class="sl">POWER <input id="xp" type="range" min="0" max="47" value="20"><b id="xpv">20 dB</b></label>
+       <label class="sl">DUR <input id="xd" type="range" min="50" max="10000" step="50" value="1000"><b id="xdv">1000 ms</b></label>
+       <div class="brow"><button class="btn danger" id="xtx">▸ SEND TX COMMAND</button></div></div>
+     <div class="bcard"><div class="btitle">802.11 Packet Injection</div>
+       <div class="brow"><input id="jif" type="text" placeholder="iface e.g. wlan0mon" value="wlan0mon"></div>
+       <div class="brow" id="jtype"></div>
+       <div class="brow"><input id="jtgt" type="text" placeholder="target BSSID / SSID (optional)"><input id="jcnt" type="number" value="16" style="width:72px;flex:0"></div>
+       <div class="brow"><input id="jpay" type="text" placeholder="custom payload hex (optional)"></div>
+       <div class="brow"><button class="btn danger" id="jsend">▸ SEND INJECT COMMAND</button></div></div>
+     <div class="bcard"><div class="btitle">Spectrum Scan</div><div class="brow" id="scanb"></div></div>
+     <div class="bcard"><div class="btitle">Command log</div>
+       <pre id="xlog" style="margin:0;max-height:130px;overflow:auto;font-size:10px;color:var(--grey);white-space:pre-wrap"></pre></div>
+   </div>`;
+  const xf=$('#xf',p),upf=()=>$('#xfv',p).textContent=freqLabel(Math.pow(10,+xf.value));xf.oninput=upf;upf();
+  $('#xp',p).oninput=e=>$('#xpv',p).textContent=e.target.value+' dB';
+  $('#xd',p).oninput=e=>$('#xdv',p).textContent=e.target.value+' ms';
+  let wave='cw';const xw=$('#xwave',p);
+  [['CW','cw'],['Sine','sine'],['Chirp','chirp'],['Gaussian','gauss'],['NDP','ndp'],['Preamble','preamble']].forEach(([n,v])=>{
+    const b=el('button','btn'+(v==='cw'?' on':''),n);b.onclick=()=>{wave=v;[...xw.children].forEach(c=>c.classList.remove('on'));b.classList.add('on');};xw.appendChild(b);});
+  $('#xtx',p).onclick=()=>BRIDGE.send({cmd:'tx',freq:Math.pow(10,+xf.value),wave,power:+$('#xp',p).value,durationMs:+$('#xd',p).value});
+  let jt='beacon';const jtp=$('#jtype',p);
+  [['Beacon','beacon'],['Probe','probe'],['Deauth','deauth'],['Custom','custom']].forEach(([n,v])=>{
+    const b=el('button','btn'+(v==='beacon'?' on':''),n);b.onclick=()=>{jt=v;[...jtp.children].forEach(c=>c.classList.remove('on'));b.classList.add('on');};jtp.appendChild(b);});
+  $('#jsend',p).onclick=()=>BRIDGE.send({cmd:'inject',iface:$('#jif',p).value||'wlan0mon',type:jt,
+    count:+$('#jcnt',p).value||1,target:$('#jtgt',p).value||null,payload:$('#jpay',p).value||null});
+  const sb=$('#scanb',p);
+  [['2.4 GHz','2.4'],['5 GHz','5'],['Sub-GHz','sub'],['Full','full']].forEach(([n,v])=>{
+    const b=el('button','btn',n);b.onclick=()=>BRIDGE.send({cmd:'scan',band:v});sb.appendChild(b);});
+  const render=()=>{const pre=$('#xlog',p);if(pre)pre.textContent=BRIDGE.log.join('\n');};
+  window.addEventListener('bridgelog',render);render();
+});
+
+/* ================================================================
+   SHARED: geolocation + astronomy (sun / sunrise-sunset / stars / GEO sats)
+   ================================================================ */
+S.pos=null;S.pitch=0;
+function geoNow(cb){ if(!navigator.geolocation){cb&&cb(null);return;}
+  navigator.geolocation.getCurrentPosition(pp=>{S.pos={lat:pp.coords.latitude,lon:pp.coords.longitude,acc:pp.coords.accuracy,t:Date.now()};cb&&cb(S.pos);},
+    ()=>cb&&cb(null),{enableHighAccuracy:true,timeout:9000,maximumAge:30000}); }
+const D2R=Math.PI/180,R2D=180/Math.PI;
+function julian(d){return d.getTime()/86400000+2440587.5;}
+function fromJ(J){return new Date((J-2440587.5)*86400000);}
+function sunRaDec(d){const n=julian(d)-2451545.0;
+  const L=(280.460+0.9856474*n)%360,g=((357.528+0.9856003*n)%360)*D2R;
+  const lam=(L+1.915*Math.sin(g)+0.020*Math.sin(2*g))*D2R,eps=23.439*D2R;
+  return{ra:((Math.atan2(Math.cos(eps)*Math.sin(lam),Math.cos(lam))*R2D)+360)%360,
+    dec:Math.asin(Math.sin(eps)*Math.sin(lam))*R2D};}
+function altaz(raDeg,decDeg,lat,lon,d){const n=julian(d)-2451545.0;
+  const gmst=(280.46061837+360.98564736629*n)%360,lst=(gmst+lon)%360;
+  let H=((lst-raDeg)%360+360)%360;if(H>180)H-=360;H*=D2R;const dec=decDeg*D2R,la=lat*D2R;
+  const alt=Math.asin(Math.sin(la)*Math.sin(dec)+Math.cos(la)*Math.cos(dec)*Math.cos(H));
+  let az=Math.atan2(Math.sin(H),Math.cos(H)*Math.sin(la)-Math.tan(dec)*Math.cos(la));
+  return{alt:alt*R2D,az:(az*R2D+180)%360};}
+function sunTimes(date,lat,lon){const r=D2R,n=Math.floor(julian(date)-2451545.0+0.0008);
+  const Js=n-lon/360,M=(357.5291+0.98560028*Js)%360;
+  const C=1.9148*Math.sin(M*r)+0.0200*Math.sin(2*M*r)+0.0003*Math.sin(3*M*r);
+  const lam=(M+C+180+102.9372)%360;
+  const Jt=2451545.0+Js+0.0053*Math.sin(M*r)-0.0069*Math.sin(2*lam*r);
+  const dec=Math.asin(Math.sin(lam*r)*Math.sin(23.44*r));
+  let co=(Math.sin(-0.833*r)-Math.sin(lat*r)*Math.sin(dec))/(Math.cos(lat*r)*Math.cos(dec));
+  if(co>1)return{polar:'night'};if(co<-1)return{polar:'day'};
+  const w=Math.acos(co)*R2D;return{rise:fromJ(Jt-w/360),set:fromJ(Jt+w/360),transit:fromJ(Jt)};}
+function geoSat(satLon,lat,lon){const r=D2R,dl=(satLon-lon)*r,la=lat*r;
+  const el=Math.atan2(Math.cos(dl)*Math.cos(la)-0.1512,Math.sqrt(1-Math.cos(dl)*Math.cos(dl)*Math.cos(la)*Math.cos(la)))*R2D;
+  let az=(Math.PI+Math.atan2(Math.tan(dl),Math.sin(la)))*R2D;az=((az%360)+360)%360;
+  const Re=6378,Rs=42164,d=Math.sqrt(Re*Re+Rs*Rs-2*Re*Rs*Math.cos(la)*Math.cos(dl));
+  return{az,el,dist:d};}
+const STARS=[['Polaris',2.53,89.26],['Sirius',6.75,-16.72],['Vega',18.62,38.78],['Arcturus',14.26,19.18],
+ ['Capella',5.28,46.0],['Rigel',5.24,-8.2],['Betelgeuse',5.92,7.41],['Procyon',7.65,5.22],
+ ['Aldebaran',4.60,16.51],['Altair',19.85,8.87],['Deneb',20.69,45.28],['Antares',16.49,-26.43],
+ ['Spica',13.42,-11.16],['Pollux',7.76,28.03],['Regulus',10.14,11.97],['Dubhe·Dipper',11.06,61.75],
+ ['Alkaid·Dipper',13.79,49.31],['Mizar·Dipper',13.40,54.93],['Castor',7.58,31.89]];
+const GEOSATS=[['GOES-West',-137],['GOES-East',-75.2],['Galaxy 19',-97],['SES-3',-103],
+ ['EchoStar 19',-97.1],['Intelsat 30',-95],['Anik F2',-111.1],['SiriusXM-8',-120],['Telstar 19V',-63]];
+function angDiff(a,b){let d=((a-b)%360+540)%360-180;return d;}
+
+/* ================= PAGE: PERMISSIONS ============================= */
+definePage('perms','PERMS',`<svg viewBox="0 0 24 24"><circle class="stroke" cx="12" cy="12" r="3.2"/><path class="stroke" d="M12 3v3M12 18v3M3 12h3M18 12h3M5.5 5.5l2 2M16.5 16.5l2 2M18.5 5.5l-2 2M7.5 16.5l-2 2"/></svg>`,(p)=>{
+  p.innerHTML=`<div class="hd"><h2>Permissions &amp; Sensors</h2><span class="sub">grant hardware access</span>
+    <div class="sp"></div><button class="btn danger" id="grantAll">◉ GRANT ALL</button></div>
+   <div class="grow scroll" style="padding:10px;display:flex;flex-direction:column;gap:8px" id="permlist"></div>`;
+  const rows=[
+    ['cam','Camera','Live optics, scope, motion, capture',()=>armAll()],
+    ['mic','Microphone','Sound analysis, sonar, wildlife listen',()=>initAudio()],
+    ['loc','Location (GPS)','Weather, sky, finds log, SOS',()=>geoNow(()=>{})],
+    ['mot','Motion / Orientation','Compass, sky pointing, seismic, CSI',async()=>{try{if(DeviceMotionEvent.requestPermission)await DeviceMotionEvent.requestPermission();}catch(e){}try{if(DeviceOrientationEvent.requestPermission)await DeviceOrientationEvent.requestPermission();}catch(e){}initMotion();}],
+    ['mag','Magnetometer','Real µT EMF field detector',()=>{try{if('Magnetometer'in window){const m=new Magnetometer({frequency:20});m.onreading=()=>{S.mag={x:m.x,y:m.y,z:m.z,mag:Math.hypot(m.x,m.y,m.z)};};m.start();}else toast('No magnetometer API here');}catch(e){toast('Magnetometer blocked');}}],
+    ['note','Notifications','Alerts &amp; SOS confirmations',async()=>{try{if(window.Notification)await Notification.requestPermission();}catch(e){}}],
+  ];
+  const list=$('#permlist',p);
+  rows.forEach(([k,name,desc,fn])=>{const c=el('div','bcard');
+    c.innerHTML=`<div style="display:flex;align-items:center;gap:8px">
+      <span id="ps-${k}" style="width:11px;height:11px;border-radius:50%;background:#555;flex:0 0 auto"></span>
+      <div style="flex:1"><div style="color:#fff">${name}</div><div class="bnote" style="margin:0">${desc}</div></div>
+      <button class="btn" id="pb-${k}">GRANT</button></div>`;
+    list.appendChild(c);$('#pb-'+k,c).onclick=async()=>{await fn();};});
+  $('#grantAll',p).onclick=async()=>{await armAll();geoNow(()=>{});
+    try{if('Magnetometer'in window){const m=new Magnetometer({frequency:20});m.onreading=()=>{S.mag={x:m.x,y:m.y,z:m.z,mag:Math.hypot(m.x,m.y,m.z)};};m.start();}}catch(e){}
+    try{if(window.Notification)await Notification.requestPermission();}catch(e){}
+    loadWeather();toast('Requested all permissions — accept each prompt');};
+  p.draw=()=>{const set=(k,on)=>{const d=$('#ps-'+k,p);if(d)d.style.background=on?'#38ff9b':'#555';};
+    set('cam',S.camRunning);set('mic',S.audioReady===true);set('loc',!!S.pos);
+    set('mot',S.headingOK||S.imu.mag>0);set('mag',!!S.mag);
+    set('note',window.Notification&&Notification.permission==='granted');};
+});
+
+/* ================= PAGE: SKY (sun / stars / satellites) ========== */
+definePage('sky','SKY',`<svg viewBox="0 0 24 24"><circle class="fill" cx="12" cy="12" r="3"/><path class="stroke" d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M18.4 5.6L17 7M7 17l-1.4 1.4"/><circle class="fill" cx="19" cy="5" r="1"/><circle class="fill" cx="5" cy="18" r="1"/></svg>`,(p)=>{
+  p.innerHTML=`<div class="hd"><h2>Sky · Sat · Sun</h2><span class="sub">point up · AR overlay</span>
+    <div class="sp"></div><button class="btn" id="skyEn">◉ ENABLE</button></div>
+    <div class="grow"><canvas id="skc" data-pt="sk"></canvas><div class="legend" id="sklg">—</div>
+      <div class="mini" id="skv">tap ENABLE (needs location + motion)</div></div>`;
+  $('#skyEn',p).onclick=async()=>{await armAll();geoNow(()=>{});$('#skyEn',p).classList.add('on');};
+  const cv=$('#skc',p),g=cv.getContext('2d');
+  p.draw=()=>{const DPR=devicePixelRatio,w=cv.width=cv.clientWidth*DPR,h=cv.height=cv.clientHeight*DPR;
+    g.fillStyle='#05060a';g.fillRect(0,0,w,h);
+    const lookAz=S.heading, lookEl=clamp((S.pitch||0)-90,-90,90);
+    const ppd=w/70;                              // ~70° field of view
+    const cx=w/2,cy=h/2;
+    // horizon + reticle
+    const hy=cy+lookEl*ppd; g.strokeStyle='rgba(255,42,58,.3)';g.lineWidth=1*DPR;
+    g.beginPath();g.moveTo(0,hy);g.lineTo(w,hy);g.stroke();
+    g.fillStyle='rgba(180,180,186,.6)';g.font=(9*DPR)+'px monospace';g.textAlign='center';g.fillText('HORIZON',cx,hy-4*DPR);
+    g.strokeStyle='rgba(255,42,58,.5)';g.beginPath();g.moveTo(cx-14*DPR,cy);g.lineTo(cx+14*DPR,cy);
+    g.moveTo(cx,cy-14*DPR);g.lineTo(cx,cy+14*DPR);g.stroke();
+    if(!S.pos){$('#skv',p).textContent='need location — tap ENABLE, accept GPS';return;}
+    const now=new Date(),objs=[];
+    const sun=sunRaDec(now),sp=altaz(sun.ra,sun.dec,S.pos.lat,S.pos.lon,now);
+    objs.push({n:'☀ Sun',az:sp.az,el:sp.alt,c:'#ffb020',r:9});
+    for(const[n,rah,dec] of STARS){const aa=altaz(rah*15,dec,S.pos.lat,S.pos.lon,now);
+      if(aa.alt>-5)objs.push({n,az:aa.az,el:aa.alt,c:'#ffffff',r:3});}
+    for(const[n,lonS] of GEOSATS){const s=geoSat(lonS,S.pos.lat,S.pos.lon);
+      if(s.el>-2)objs.push({n:'🛰 '+n,az:s.az,el:s.el,c:'#38c0ff',r:4,dist:s.dist});}
+    g.textAlign='left';
+    let shown=0;
+    for(const o of objs){const dx=angDiff(o.az,lookAz)*ppd, dy=-(o.el-lookEl)*ppd;
+      const x=cx+dx,y=cy+dy;if(x<-40||x>w+40||y<-40||y>h+40)continue;shown++;
+      g.fillStyle=o.c;g.beginPath();g.arc(x,y,o.r*DPR,0,7);g.fill();
+      g.fillStyle='rgba(235,235,240,.9)';g.font=(9*DPR)+'px monospace';
+      g.fillText(o.n+'  '+fmt(o.el,0)+'°',x+o.r*DPR+4*DPR,y+3*DPR);}
+    const st=sunTimes(now,S.pos.lat,S.pos.lon);
+    const tt=d=>d?d.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'}):'—';
+    $('#sklg',p).innerHTML=`look ${fmt(lookAz,0)}°az ${fmt(lookEl,0)}°el<br>${shown} objects`;
+    $('#skv',p).innerHTML=st.polar?('polar '+st.polar):`☀ ${fmt(sp.alt,0)}° &nbsp; ↑${tt(st.rise)} &nbsp; ↓${tt(st.set)}`;
+  };
+});
+
+/* ================= PAGE: DETERRENT (wildlife noisemaker) ========= */
+definePage('deter','DETER',`<svg viewBox="0 0 24 24"><path class="stroke" d="M8 10a4 4 0 018 0v4l1.5 2.5h-11L8 14z"/><path class="stroke" d="M10 19a2 2 0 004 0"/><path class="fill" d="M12 3a1 1 0 011 1v1h-2V4a1 1 0 011-1z"/></svg>`,(p)=>{
+  p.innerHTML=`<div class="hd"><h2>Wildlife Deterrent</h2><span class="sub">noisemaker · announce presence</span>
+    <div class="sp"></div><button class="btn danger" id="dStop">■ STOP</button></div>
+   <div class="grow scroll" style="padding:10px;display:flex;flex-direction:column;gap:9px">
+     <div class="bcard" style="border-color:rgba(255,176,32,.5)"><div class="bnote" style="color:var(--amber)">⚠ Noise helps you <b>avoid surprising</b> wildlife — the single best way to prevent an encounter. It is not a guaranteed repellent. Carry bear spray; never run. Species guidance below.</div></div>
+     <div class="bcard"><div class="btitle">Species</div><div class="brow" id="dsp"></div>
+       <div class="bnote" id="dadvice">—</div></div>
+     <div class="bcard"><div class="btitle">Noisemaker · frequency profiles</div>
+       <div class="brow" id="dsounds"></div>
+       <div class="brow"><button class="btn" id="dShout">🗣 Voice call-out</button></div>
+       <div class="brow" style="align-items:center">
+         <button class="btn on" id="dMute">🔊 ON</button>
+         <button class="btn" id="dVdn">VOL −</button><button class="btn" id="dVup">VOL +</button>
+         <span class="chip">VOL <b id="dvv">70</b>%</span></div>
+       <label class="sl">INTERVAL <input id="dint" type="range" min="300" max="4000" step="100" value="1400"><b id="dintv">1.4s</b></label>
+       <div class="bnote">Different animals react to different pitches — low booms carry far, high whistles pierce. Loop repeats until STOP or 🔇.</div>
+     </div></div>`;
+  const ADV={bear:'BEAR (black/grizzly): talk loudly, group up, don\'t run. If charged by a grizzly, play dead (face down, protect neck); fight back against a black bear. Bear spray at 30–60 ft.',
+    lion:'MOUNTAIN LION (Roosevelt NF): do NOT run or crouch. Face it, look big, raise arms/jacket, shout. Throw objects. Pick up kids. Fight back if attacked — aim for eyes/face.',
+    moose:'MOOSE: more dangerous than it looks. Back away, put a tree/car between you. If it charges, run and get behind cover. Watch for lowered head, raised hackles, licking lips.',
+    wolf:'WOLF: rare to attack. Stand tall, be loud and assertive, maintain eye contact, back away slowly. Do not run. Throw rocks/sticks if approached.'};
+  let species='bear',ctx=null,master=null,muted=false,vol=.7,interval=1400,loopT=null;
+  function octx(){if(!ctx){ctx=new (window.AudioContext||window.webkitAudioContext)();
+    master=ctx.createGain();master.gain.value=muted?0:vol;master.connect(ctx.destination);}return ctx;}
+  function applyVol(){if(master)master.gain.value=muted?0:vol;const v=$('#dvv',p);if(v)v.textContent=Math.round(vol*100);}
+  const dsp=$('#dsp',p);
+  [['🐻 Bear','bear'],['🦁 Lion','lion'],['🫎 Moose','moose'],['🐺 Wolf','wolf']].forEach(([n,v])=>{
+    const b=el('button','btn'+(v==='bear'?' on':''),n);b.onclick=()=>{species=v;
+      [...dsp.children].forEach(c=>c.classList.remove('on'));b.classList.add('on');$('#dadvice',p).textContent=ADV[v];};dsp.appendChild(b);});
+  $('#dadvice',p).textContent=ADV.bear;
+  $('#dint',p).oninput=e=>{interval=+e.target.value;$('#dintv',p).textContent=(interval/1000).toFixed(1)+'s';};
+  function tone(cfg){const c=octx(),t=c.currentTime;cfg.freqs.forEach(f=>{const o=c.createOscillator(),gn=c.createGain();
+    o.type=cfg.type||'sine';o.frequency.setValueAtTime(f,t);if(cfg.sweepTo)o.frequency.linearRampToValueAtTime(cfg.sweepTo,t+cfg.dur);
+    if(cfg.vib){const lfo=c.createOscillator(),lg=c.createGain();lfo.frequency.value=cfg.vib;lg.gain.value=f*0.07;
+      lfo.connect(lg);lg.connect(o.frequency);lfo.start(t);lfo.stop(t+cfg.dur);}
+    o.connect(gn);gn.connect(master);gn.gain.setValueAtTime(0.0001,t);
+    gn.gain.exponentialRampToValueAtTime(cfg.gain||0.6,t+0.01);
+    gn.gain.setValueAtTime(cfg.gain||0.6,t+cfg.dur-0.06);gn.gain.exponentialRampToValueAtTime(0.0001,t+cfg.dur);
+    o.start(t);o.stop(t+cfg.dur+0.03);});}
+  const SND={
+    boom:['💥 Low boom',()=>tone({freqs:[110],type:'sine',dur:0.7,gain:0.95})],
+    bell:['🔔 Bell',()=>tone({freqs:[880,1318,1760],type:'sine',dur:0.8,gain:0.5})],
+    siren:['🚨 Siren',()=>tone({freqs:[700],type:'sawtooth',dur:0.9,gain:0.55,sweepTo:1600})],
+    whistle:['📣 Whistle 3k',()=>tone({freqs:[3000],type:'sine',dur:0.5,gain:0.5})],
+    horn:['📢 Air-horn',()=>tone({freqs:[420],type:'sawtooth',dur:0.8,gain:0.55,vib:6})],
+    growl:['🐾 Growl 90Hz',()=>tone({freqs:[90,180],type:'sawtooth',dur:0.8,gain:0.85,vib:4})],
+  };
+  const ds=$('#dsounds',p);
+  Object.entries(SND).forEach(([k,[label,fn]])=>{const b=el('button','btn',label);
+    b.onclick=()=>{startRepeat(fn);[...ds.children].forEach(c=>c.classList.remove('on'));b.classList.add('on');};ds.appendChild(b);});
+  function startRepeat(fn){stopLoop();octx();applyVol();fn();loopT=setInterval(fn,interval);toast('Deterrent active');}
+  function stopLoop(){if(loopT){clearInterval(loopT);loopT=null;}[...ds.children].forEach(c=>c.classList.remove('on'));}
+  $('#dShout',p).onclick=()=>{if(muted)return;const msg=species==='bear'?'Hey bear! Coming through!':'Hey! Human here! Coming through!';
+    if('speechSynthesis'in window){const u=new SpeechSynthesisUtterance(msg);u.volume=vol;u.rate=0.9;speechSynthesis.speak(u);}};
+  $('#dMute',p).onclick=()=>{muted=!muted;applyVol();$('#dMute',p).textContent=muted?'🔇 OFF':'🔊 ON';$('#dMute',p).classList.toggle('on',!muted);};
+  $('#dVup',p).onclick=()=>{vol=clamp(vol+0.1,0,1);applyVol();};
+  $('#dVdn',p).onclick=()=>{vol=clamp(vol-0.1,0,1);applyVol();};
+  $('#dStop',p).onclick=()=>{stopLoop();if('speechSynthesis'in window)speechSynthesis.cancel();toast('Stopped');};
+  p.onHide=()=>{stopLoop();if('speechSynthesis'in window)speechSynthesis.cancel();};
+});
+
+/* ================= PAGE: EMERGENCY / SOS ======================== */
+definePage('emergency','SOS',`<svg viewBox="0 0 24 24"><path class="fill" d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.8 5.9 20.4l1.4-6.8L2.2 9.1l6.9-.8z"/></svg>`,(p)=>{
+  p.innerHTML=`<div class="hd"><h2>Emergency / SOS</h2><span class="sub">first aid · GPS SOS</span></div>
+   <div class="grow scroll" style="padding:10px;display:flex;flex-direction:column;gap:9px">
+     <div class="bcard" style="border-color:#e01020"><div class="btitle" style="color:#e01020">⛑ SOS BEACON</div>
+       <div class="brow" id="sosinc"></div>
+       <textarea id="sosmsg" placeholder="Describe your emergency (injury, people, needs)…" style="width:100%;min-height:52px;font-family:var(--mono);font-size:12px;background:rgba(24,24,28,.7);color:#fff;border:1px solid var(--line);border-radius:7px;padding:7px"></textarea>
+       <div class="brow"><button class="btn danger" id="sosBuild">📍 LOCK GPS + BUILD SOS</button>
+         <button class="btn" id="sosClear">✅ ALL CLEAR</button>
+         <button class="btn" id="sosTest">🧪 TEST (drill)</button></div>
+       <pre id="sosout" style="margin:0;font-size:10px;color:#fff;white-space:pre-wrap;background:rgba(224,16,32,.08);border:1px solid rgba(224,16,32,.4);border-radius:7px;padding:8px;display:none"></pre>
+       <div class="brow" id="sosacts" style="display:none">
+         <button class="btn" id="sosShare">↗ Share / Text</button>
+         <button class="btn" id="sosCopy">⧉ Copy</button>
+         <a class="btn" id="sosMap" target="_blank" rel="noopener">🗺 Map</a>
+         <button class="btn danger" id="sosLora">📡 LoRa SOS (bridge)</button></div>
+       <div class="bnote">Call 911 first if you have any signal. This beacon packages your exact coordinates + time + a map link to send by text/share; the phone can't transmit LoRa/radio itself, so LoRa SOS sends the beacon to your paired bridge radio.</div></div>
+     <div class="bcard"><div class="btitle">Nearby (opens maps)</div><div class="brow" id="nearb"></div></div>
+     <div class="bcard"><div class="btitle">Radio Codes (reference)</div><div id="codes"></div>
+       <div class="bnote">10-codes vary by agency and many now use plain language — on ham/GMRS say "mayday" or "emergency" in plain words first. For poison: US Poison Control 1-800-222-1222.</div></div>
+     <div class="bcard"><div class="btitle">Field First Aid</div><div id="fa"></div>
+       <div class="bnote">Reference only — not a substitute for professional care. When in doubt, call 911 and get to an ER.</div></div>
+   </div>`;
+  // SOS — one builder, three modes (real / all-clear / test-drill)
+  function buildSOS(mode){toast('Locking GPS…');geoNow(pos=>{
+    const now=new Date();const note=$('#sosmsg',p).value.trim()||'(no details)';
+    const ll=pos?`${pos.lat.toFixed(5)}, ${pos.lon.toFixed(5)} (±${Math.round(pos.acc)}m)`:'GPS unavailable';
+    const map=pos?`https://maps.google.com/?q=${pos.lat},${pos.lon}`:'';
+    const head=mode==='clear'?'✅ ALL CLEAR — FALSE ALARM. Everyone is safe, please disregard any prior SOS.'
+      :mode==='test'?'🧪 TEST / DRILL ONLY — this is NOT a real emergency. Do NOT dispatch.'
+      :'🆘 SOS — NEED HELP';
+    const txt=`${head}\n${note}\nLocation: ${ll}\nTime: ${now.toLocaleString()}\n${map}`;
+    const out=$('#sosout',p);out.style.display='block';out.textContent=txt;
+    out.style.borderColor=mode==='clear'?'#38c0ff':mode==='test'?'#ffb020':'rgba(224,16,32,.4)';
+    $('#sosacts',p).style.display='flex';
+    const mp=$('#sosMap',p);if(map){mp.href=map;mp.style.display='';}else mp.style.display='none';
+    $('#sosShare',p).onclick=async()=>{try{if(navigator.share){await navigator.share({title:head.split('—')[0],text:txt});return;}}catch(e){}
+      location.href='sms:?&body='+encodeURIComponent(txt);};
+    $('#sosCopy',p).onclick=()=>{try{navigator.clipboard.writeText(txt);toast('Copied');}catch(e){toast('Copy blocked');}};
+    $('#sosLora',p).onclick=()=>{const cmd=mode==='clear'?'sos-cancel':mode==='test'?'sos-test':'sos';
+      if(BRIDGE.send({cmd,lat:pos&&pos.lat,lon:pos&&pos.lon,msg:note,ts:now.toISOString()}))toast('Bridge: '+cmd+' sent');};
+    toast(mode==='clear'?'All-clear message built':mode==='test'?'TEST drill built — no real dispatch':(pos?'SOS built with GPS fix':'SOS built (no GPS fix)'));
+  });}
+  $('#sosBuild',p).onclick=()=>buildSOS('real');
+  $('#sosClear',p).onclick=()=>buildSOS('clear');
+  $('#sosTest',p).onclick=()=>buildSOS('test');
+  // incident quick-templates
+  const INC=[['🩺 Medical','MEDICAL: conscious? breathing? chest pain/bleeding? age: '],
+    ['🔥 Fire','FIRE: wildland or structure, size/spread, anyone trapped? nearest road: '],
+    ['☠ Poisoning','POISONING: substance, amount, time taken, symptoms. (US Poison Control 1-800-222-1222) '],
+    ['🩹 Injury','INJURY: what happened, bleeding/fracture, can they walk? '],
+    ['🧭 Lost person','LOST PERSON: name, age, last seen time/place, direction, clothing: '],
+    ['🚗 Vehicle','VEHICLE: crash/stuck/rollover, number of people, injuries, road + mile: '],
+    ['🐾 Wildlife','WILDLIFE ATTACK: animal, injuries, is the animal still present? '],
+    ['⚠ Hazmat','HAZMAT: substance, spill/leak/gas, exposure, wind direction: ']];
+  const si=$('#sosinc',p);INC.forEach(([n,tpl])=>{const b=el('button','btn',n);
+    b.onclick=()=>{$('#sosmsg',p).value=tpl;$('#sosmsg',p).focus();toast('Template set — add details, then build');};si.appendChild(b);});
+  // radio code reference
+  const CODES=[
+    ['Common 10-codes',[['10-4','acknowledged / OK'],['10-9','repeat / say again'],['10-20','location'],['10-7','out of service'],['10-8','in service'],['10-33','emergency — all units'],['10-50','accident'],['10-70','fire'],['10-76','en route'],['10-99','officer needs help']]],
+    ['Ham Q-codes',[['QTH','my location is'],['QSL','acknowledge / confirm'],['QRZ','who is calling me'],['QRM','man-made interference'],['QRN','natural noise / static'],['QRP','low power'],['QRT','stop sending / off air'],['QSB','your signal is fading'],['QSY','change frequency'],['QRX','stand by / wait']]],
+    ['Prosigns & distress',[['MAYDAY','voice distress — life threat (x3)'],['PAN-PAN','urgent, not life threat (x3)'],['SOS','Morse distress  . . . - - - . . .'],['CQ','calling any station'],['73','best regards'],['K','go ahead / over'],['SK','end of contact'],['AR','end of message']]],
+  ];
+  const cc=$('#codes',p);CODES.forEach(([t,rows])=>{const d=el('details');d.style.cssText='border-bottom:1px solid rgba(255,42,58,.12);padding:4px 0';
+    d.innerHTML=`<summary style="cursor:pointer;color:#fff;font-size:12px">${t}</summary>`+
+      '<div style="margin-top:4px">'+rows.map(([c,m])=>`<div style="display:flex;justify-content:space-between;gap:12px;font-size:10px;color:var(--grey);padding:2px 0"><b style="color:var(--red);min-width:70px">${c}</b><span style="flex:1;text-align:right">${m}</span></div>`).join('')+'</div>';cc.appendChild(d);});
+  const nb=$('#nearb',p);
+  [['🏥 Hospital','hospital'],['🚑 ER','emergency+room'],['💊 Clinic','urgent+care+clinic'],['🚻 Restroom','public+restroom'],['💧 Water','drinking+water']].forEach(([n,q])=>{
+    const a=el('a','btn',n);a.target='_blank';a.rel='noopener';
+    a.onclick=()=>{const base=S.pos?`https://maps.google.com/?q=${q}/@${S.pos.lat},${S.pos.lon},13z`:`https://maps.google.com/?q=${q}`;a.href=base;};
+    a.href=`https://maps.google.com/?q=${q}`;nb.appendChild(a);});
+  // first aid content
+  const FA=[
+    ['CPR (adult)','Check response + breathing. Call 911. Hands center of chest, push HARD/FAST 2 in deep, 100–120/min, full recoil. 30 compressions : 2 breaths. Use AED ASAP. Don\'t stop until help arrives.'],
+    ['Severe bleeding','Apply firm DIRECT pressure with cloth; don\'t peek. Add layers, keep pressing. If life-threatening limb bleed won\'t stop, apply a tourniquet 2–3 in above wound (not on a joint), note the time. Treat for shock.'],
+    ['Shock','Lay flat, elevate legs ~12 in (unless head/spine/leg injury), keep warm, reassure, nothing to eat/drink. Monitor breathing. 911.'],
+    ['Sling / splint','Splint the joint above AND below the break; pad it; don\'t straighten. Check fingers/toes for warmth + pulse after. Sling supports forearm across chest. Ice over cloth, elevate.'],
+    ['Snakebite','Stay calm, move away from snake. Keep bitten limb still and BELOW heart. Remove rings/watch. NO tourniquet, NO cutting, NO suction, NO ice. Mark swelling edge + time. Get to ER fast.'],
+    ['Bee / wasp sting','Scrape stinger out sideways (don\'t squeeze). Wash, cold compress. Watch for allergy: throat tightness, hives spreading, trouble breathing → use epinephrine auto-injector + 911.'],
+    ['Tick','Grab close to skin with tweezers, pull straight out steadily. Clean. Save tick, note date. Watch for bullseye rash / fever for weeks.'],
+    ['Hypothermia','Shivering, confusion, slurred speech. Get dry + out of wind, insulate from ground, warm core (not just limbs), warm sweet drinks if alert. Handle gently. 911 if severe.'],
+    ['Heat stroke','Hot skin, confusion, maybe no sweat — EMERGENCY. Move to shade, cool FAST: water on skin + fan, ice at neck/armpits/groin. 911. Heat exhaustion: rest, shade, sip water + electrolytes.'],
+    ['Water sourcing','Best: flowing water uphill of camps/trails. Always purify: rolling boil 1 min (3 min above 6,500 ft), or filter, or chemical tabs. Avoid stagnant/scummy water.'],
+    ['Lost / signal','STOP: Stop, Think, Observe, Plan. Stay put if unsure. 3 of anything = distress (3 whistle blasts, 3 fires). Make yourself big + bright. Conserve phone; text uses less signal than calls.'],
+  ];
+  const fa=$('#fa',p);FA.forEach(([t,b])=>{const d=el('details');d.style.cssText='border-bottom:1px solid rgba(255,42,58,.12);padding:4px 0';
+    d.innerHTML=`<summary style="cursor:pointer;color:#fff;font-size:12px">${t}</summary><div class="bnote" style="margin-top:4px">${b}</div>`;fa.appendChild(d);});
+});
+
+/* ================= FINDS LOG (localStorage, GPS) ================= */
+function loadFinds(){try{return JSON.parse(localStorage.getItem('sv_finds')||'[]');}catch(e){return[];}}
+function saveFinds(a){try{localStorage.setItem('sv_finds',JSON.stringify(a));}catch(e){}}
+
+/* ================= PAGE: FIELD ID + FINDS ======================== */
+const FIELD={
+ tracks:{title:'Animal Tracks',filters:[['Toes','toes',['any','2 cloven','4','5']],['Claws','claw',['any','yes','no']]],items:[
+   {n:'Coyote',toes:'4',claw:'yes',note:'2 to 3.5 in, dog-like, claws show, tidy direct trail.'},
+   {n:'Red fox',toes:'4',claw:'yes',note:'about 2 in, often a chevron bar across the pad.'},
+   {n:'Bobcat',toes:'4',claw:'no',note:'about 2 in, round, no claw marks, leading toe offset.'},
+   {n:'Mountain lion',toes:'4',claw:'no',note:'3 to 4 in, round, no claws, large. Report sightings.'},
+   {n:'Raccoon',toes:'5',claw:'yes',note:'hand-like, long fingers, 2 to 3 in.'},
+   {n:'Black bear',toes:'5',claw:'yes',note:'hind track human-like 5 to 7 in, claws ahead of toes.'},
+   {n:'Mule deer',toes:'2 cloven',claw:'no',note:'heart-shaped about 3 in, two halves.'},
+   {n:'Elk',toes:'2 cloven',claw:'no',note:'rounded cloven about 4 in, bigger than deer.'},
+   {n:'Moose',toes:'2 cloven',claw:'no',note:'5 to 7 in, pointed, very large. Keep distance.'}]},
+ rocks:{title:'Rocks (Front Range)',filters:[['Color','color',['any','light/pink','gray','red','dark','clear/white']],['Hardness','hard',['any','soft','hard']]],items:[
+   {n:'Granite',color:'light/pink',hard:'hard',note:'interlocking pink/gray/black crystals (Pikes Peak granite).'},
+   {n:'Gneiss / Schist',color:'gray',hard:'hard',note:'banded or flaky metamorphic, shiny mica.'},
+   {n:'Fountain sandstone',color:'red',hard:'soft',note:'red gritty sand grains (Flatirons, Red Rocks).'},
+   {n:'Quartz',color:'clear/white',hard:'hard',note:'glassy, no cleavage, scratches glass.'},
+   {n:'Pegmatite',color:'light/pink',hard:'hard',note:'very large crystals of feldspar/quartz/mica.'},
+   {n:'Basalt',color:'dark',hard:'hard',note:'fine dark volcanic, sometimes gas holes.'},
+   {n:'Limestone',color:'gray',hard:'soft',note:'fizzes with vinegar, may hold fossils.'}]},
+ berries:{title:'Berries (never eat unless 100% certain)',filters:[['Color','color',['any','red','blue/purple','black','white']]],items:[
+   {n:'Serviceberry EDIBLE',color:'blue/purple',note:'sweet, little crown on the end, shrub or small tree.'},
+   {n:'Wild raspberry EDIBLE',color:'red',note:'aggregate berry on brambly canes.'},
+   {n:'Oregon grape EDIBLE tart',color:'blue/purple',note:'holly-like leaves, tart, usually cooked.'},
+   {n:'Chokecherry COOK ONLY',color:'black',note:'clusters, flesh ok cooked but pits and leaves are toxic.'},
+   {n:'Kinnikinnick EDIBLE bland',color:'red',note:'low mat plant, mealy red berries.'},
+   {n:'Baneberry TOXIC',color:'white',note:'white or red berry with a black dot (dolls eyes). Can be fatal.'},
+   {n:'Nightshade TOXIC',color:'black',note:'shiny black berry, star-shaped flower. Do not eat.'}]},
+ plants:{title:'Trees / Plants',filters:[['Foliage','t',['any','needles','broad leaf','scale']]],items:[
+   {n:'Ponderosa pine',t:'needles',note:'long needles in 3s, bark smells of vanilla/butterscotch.'},
+   {n:'Lodgepole pine',t:'needles',note:'2 needles per bundle, tall straight slender trunks.'},
+   {n:'Douglas-fir',t:'needles',note:'soft flat needles all round the twig, mouse-tail cone bracts.'},
+   {n:'Blue spruce',t:'needles',note:'stiff sharp square blue-green needles.'},
+   {n:'Quaking aspen',t:'broad leaf',note:'white bark, round fluttering leaves, clonal groves.'},
+   {n:'Rocky Mtn juniper',t:'scale',note:'scaly foliage, blue berry-like cones.'}]},
+ animals:{title:'Wildlife (visual)',filters:[['Size','sz',['any','small','medium','large']]],items:[
+   {n:'Mule deer',sz:'large',note:'big ears, black-tipped tail, bounding stott gait.'},
+   {n:'Elk',sz:'large',note:'tan body, dark neck, pale rump, bugles in fall.'},
+   {n:'Moose',sz:'large',note:'very large, dark, long nose, shoulder hump. Dangerous.'},
+   {n:'Black bear',sz:'large',note:'may be brown/cinnamon in CO, no shoulder hump.'},
+   {n:'Mountain lion',sz:'large',note:'tawny, very long thick tail, rarely seen.'},
+   {n:'Coyote',sz:'medium',note:'gray-tan, bushy tail held low when running.'},
+   {n:'Bobcat',sz:'medium',note:'short bobbed tail, ear tufts, spotted.'},
+   {n:'Marmot',sz:'medium',note:'rock piles, loud whistle, the whistle pig.'},
+   {n:'Pika',sz:'small',note:'small round rabbit relative in talus, loud eenk.'}]},
+};
+definePage('field','FIELD ID',`<svg viewBox="0 0 24 24"><path class="stroke" d="M12 3c5 2 7 6 7 10a7 7 0 01-14 0c0-4 2-8 7-10z"/><path class="stroke" d="M12 7v10"/></svg>`,(p)=>{
+  p.innerHTML=`<div class="hd"><h2>Field ID &amp; Finds</h2><span class="sub">feature key · GPS log</span>
+    <div class="sp"></div><button class="btn" id="fcap">📷 PHOTO</button></div>
+   <div class="grow scroll" style="padding:10px;display:flex;flex-direction:column;gap:9px">
+     <div class="bcard"><div class="brow" id="fcat"></div>
+       <div class="bnote">Observe features and narrow the list. This is an honest field key for the Colorado Front Range / Roosevelt NF — not a photo auto-ID.</div></div>
+     <div class="bcard"><div class="brow" id="ffilt"></div><div id="fres"></div></div>
+     <div class="bcard"><div class="btitle">Log this find (with GPS)</div>
+       <div class="brow"><input id="fnote" type="text" placeholder="what + notes (e.g. bear track by creek)"></div>
+       <div class="brow"><button class="btn danger" id="flog">📍 LOG GPS FIND</button>
+         <button class="btn" id="fexport">⤓ Export</button></div>
+       <div id="flist" class="scroll" style="max-height:180px"></div></div>
+   </div>`;
+  $('#fcap',p).onclick=()=>capturePhoto();
+  let cat='tracks',sel={};
+  const fcat=$('#fcat',p);
+  Object.keys(FIELD).forEach(k=>{const b=el('button','btn'+(k===cat?' on':''),FIELD[k].title.split(' ')[0]);
+    b.onclick=()=>{cat=k;sel={};[...fcat.children].forEach(c=>c.classList.remove('on'));b.classList.add('on');renderFilt();};fcat.appendChild(b);});
+  function renderFilt(){const f=$('#ffilt',p);f.innerHTML='';const def=FIELD[cat];
+    f.appendChild(el('span','chip',def.title));
+    def.filters.forEach(([label,key,opts])=>{const s=el('select','');
+      s.innerHTML=opts.map(o=>`<option value="${o}">${label}: ${o}</option>`).join('');
+      s.onchange=()=>{sel[key]=s.value==='any'?null:s.value;renderRes();};f.appendChild(s);});
+    renderRes();}
+  function renderRes(){const r=$('#fres',p);const def=FIELD[cat];
+    const m=def.items.filter(it=>Object.entries(sel).every(([k,v])=>!v||it[k]===v));
+    r.innerHTML=m.length?m.map(it=>`<div style="padding:5px 0;border-bottom:1px solid rgba(255,42,58,.12)">
+      <b style="color:#fff">${it.n}</b><div class="bnote" style="margin:2px 0 0">${it.note}</div></div>`).join(''):'<div class="bnote">No match — widen the filters.</div>';}
+  function renderFinds(){const l=$('#flist',p),a=loadFinds();
+    l.innerHTML=a.length?a.slice().reverse().map((f,i)=>`<div style="display:flex;gap:6px;align-items:center;padding:4px 0;border-bottom:1px solid rgba(255,42,58,.1)">
+      <div style="flex:1;font-size:10px"><b style="color:#fff">${f.cat}</b> ${f.note||''}<br>
+      <span style="color:var(--grey)">${f.lat?f.lat.toFixed(4)+','+f.lon.toFixed(4):'no GPS'} · ${new Date(f.t).toLocaleString()}</span></div>
+      ${f.lat?`<a class="btn" target="_blank" rel="noopener" href="https://maps.google.com/?q=${f.lat},${f.lon}">🗺</a>`:''}
+      <button class="btn" data-del="${a.length-1-i}">✕</button></div>`).join(''):'<div class="bnote">No finds logged yet.</div>';
+    l.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{const a2=loadFinds();a2.splice(+b.dataset.del,1);saveFinds(a2);renderFinds();});}
+  $('#flog',p).onclick=()=>{toast('Locking GPS…');geoNow(pos=>{const a=loadFinds();
+    a.push({cat,note:$('#fnote',p).value.trim(),lat:pos&&pos.lat,lon:pos&&pos.lon,t:Date.now()});saveFinds(a);
+    $('#fnote',p).value='';renderFinds();toast(pos?'Find logged with GPS':'Find logged (no GPS fix)');});};
+  $('#fexport',p).onclick=()=>{const a=loadFinds();if(!a.length)return toast('No finds');
+    saveFile('allalone_finds_'+Date.now()+'.json',JSON.stringify(a,null,2));};
+  renderFilt();renderFinds();
+});
+
+/* ================= PAGE: WILDLIFE LISTEN ======================== */
+definePage('listen','LISTEN',`<svg viewBox="0 0 24 24"><path class="stroke" d="M4 12h2l2-6 3 14 3-18 2 10h4"/></svg>`,(p)=>{
+  p.innerHTML=`<div class="hd"><h2>Wildlife Listen</h2><span class="sub">spectrogram · call features</span>
+    <div class="sp"></div><button class="btn" id="lMic">🎙 MIC</button><button class="btn danger" id="lRec">● REC</button></div>
+    <div class="grow"><canvas id="lc" data-pt="l"></canvas><div class="legend" id="lfeat">—</div></div>
+    <div class="ctrls" style="flex-direction:column;align-items:stretch">
+      <div class="bnote">Measures pitch, rhythm and brightness of a call. Honest limit: real species ID needs a trained model (e.g. BirdNET) and animal emotion is not phone-measurable — compare the numbers to the reference below.</div>
+      <div class="bnote" style="color:#fff">Coyote yip ~400–1000 Hz, fast · Owl hoot ~300–600 Hz, slow · Elk bugle rises to 1–2 kHz · Wolf howl ~150–780 Hz, sustained · Songbird ~2–8 kHz.</div>
+      <div class="btitle" style="color:var(--red);font-size:11px;margin-top:4px">DTMF / Radio tones &nbsp;<span id="dtmfdec" style="color:#38c0ff">decode: —</span></div>
+      <div id="dtmfpad" style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px"></div>
+      <div class="bnote">Hold the speaker to your Baofeng/HT mic to SEND repeater tones; point the mic at the radio to DECODE incoming DTMF. This is acoustic DTMF — not CHIRP cable programming (that needs a USB programming cable).</div>
+    </div>`;
+  const LOW=[697,770,852,941],HIGH=[1209,1336,1477,1633];
+  const KEYS=[['1','2','3','A'],['4','5','6','B'],['7','8','9','C'],['*','0','#','D']];
+  function octx(){return S._octx||(S._octx=new (window.AudioContext||window.webkitAudioContext)());}
+  function dtmfSend(key){let lo=-1,hi=-1;KEYS.forEach((row,r)=>row.forEach((k,c)=>{if(k===key){lo=r;hi=c;}}));
+    if(lo<0)return;const c=octx(),t=c.currentTime;[LOW[lo],HIGH[hi]].forEach(f=>{const o=c.createOscillator(),gn=c.createGain();
+      o.type='sine';o.frequency.value=f;o.connect(gn);gn.connect(c.destination);gn.gain.value=0.3;
+      o.start(t);o.stop(t+0.25);});}
+  function goertzel(buf,sr,freq){const N=buf.length,k=Math.round(N*freq/sr),w=2*Math.PI*k/N,coeff=2*Math.cos(w);
+    let s1=0,s2=0;for(let i=0;i<N;i++){const x=(buf[i]-128)/128,s0=coeff*s1-s2+x;s2=s1;s1=s0;}
+    return s1*s1+s2*s2-coeff*s1*s2;}
+  const pad=$('#dtmfpad',p);KEYS.flat().forEach(k=>{const b=el('button','btn',k);b.style.padding='8px 0';
+    b.onclick=()=>{dtmfSend(k);};pad.appendChild(b);});
+  $('#lMic',p).onclick=async()=>{await initAudio();$('#lMic',p).classList.toggle('on',S.audioReady===true);};
+  let mr=null,chunks=[];
+  $('#lRec',p).onclick=async()=>{await initAudio();
+    if(mr&&mr.state==='recording'){mr.stop();return;}
+    if(!S.micStream){toast('Mic not ready');return;}
+    try{const types=['audio/webm','audio/mp4'];const mt=types.find(t=>MediaRecorder.isTypeSupported(t))||'';
+      chunks=[];mr=new MediaRecorder(S.micStream,mt?{mimeType:mt}:undefined);
+      mr.ondataavailable=e=>{if(e.data.size)chunks.push(e.data);};
+      mr.onstop=()=>{const blob=new Blob(chunks,{type:mr.mimeType||'audio/webm'});
+        saveFile('wildcall_'+Date.now()+((mr.mimeType||'').includes('mp4')?'.mp4':'.webm'),blob);
+        $('#lRec',p).classList.remove('on');$('#lRec',p).textContent='● REC';};
+      mr.start();$('#lRec',p).classList.add('on');$('#lRec',p).textContent='■ STOP';toast('Recording call…');
+    }catch(e){toast('Record failed');}};
+  function detectPitch(){if(S.audioReady!==true||!S.timeData)return 0;const b=S.timeData,N=b.length,sr=S.audioCtx.sampleRate;
+    let rms=0;const f=new Float32Array(N);for(let i=0;i<N;i++){f[i]=(b[i]-128)/128;rms+=f[i]*f[i];}
+    if(Math.sqrt(rms/N)<0.012)return 0;let best=0,off=-1;const MIN=(sr/1500)|0,MAX=(sr/80)|0;
+    for(let o=MIN;o<=MAX;o++){let c=0;for(let i=0;i<N-o;i++)c+=f[i]*f[i+o];if(c>best){best=c;off=o;}}
+    return off>0?sr/off:0;}
+  const cv=$('#lc',p),g=cv.getContext('2d');let img=null,env=[];
+  p.draw=()=>{const w=Math.round(cv.clientWidth*devicePixelRatio),h=Math.round(cv.clientHeight*devicePixelRatio);
+    if(cv.width!==w||cv.height!==h){cv.width=w;cv.height=h;g.fillStyle='#0e0e12';g.fillRect(0,0,w,h);}
+    const prev=g.getImageData(0,0,w,h-1);g.putImageData(prev,0,1);
+    for(let x=0;x<w;x++){const v=S.bands[(x/w*S.bands.length)|0]||0;g.fillStyle=heatColor(v);g.fillRect(x,0,1,1);}
+    env.push(S.micLevel);if(env.length>40)env.shift();
+    let pulses=0;for(let i=2;i<env.length;i++)if(env[i]>0.18&&env[i-1]<=0.18)pulses++;
+    const pitch=detectPitch();
+    let bright=0;for(let b=0;b<S.bands.length;b++)bright+=S.bands[b]*b;bright/=(S.bands.length*(S.bands.reduce((a,c)=>a+c,0)||1));
+    $('#lfeat',p).innerHTML=`pitch ~${pitch?Math.round(pitch):'—'} Hz · rhythm ${pulses}/win · ${bright>0.55?'bright/high':'low/warm'}`;
+    if(S.audioReady===true&&S.timeData){const sr=S.audioCtx.sampleRate,buf=S.timeData;
+      const lp=LOW.map(f=>goertzel(buf,sr,f)),hp=HIGH.map(f=>goertzel(buf,sr,f));
+      const li=lp.indexOf(Math.max(...lp)),hi=hp.indexOf(Math.max(...hp));
+      const avg=(lp.reduce((a,b)=>a+b,0)+hp.reduce((a,b)=>a+b,0))/8;
+      if(lp[li]>avg*4&&hp[hi]>avg*4&&lp[li]>0.5&&hp[hi]>0.5)$('#dtmfdec',p).textContent='decode: '+KEYS[li][hi];}
+  };
+});
+
+/* ================= PAGE: PACKET LAB (CSI/LiDAR sim) ============= */
+definePage('packet','PKT LAB',`<svg viewBox="0 0 24 24"><circle class="fill" cx="6" cy="6" r="1.4"/><circle class="fill" cx="12" cy="5" r="1.4"/><circle class="fill" cx="18" cy="7" r="1.4"/><circle class="fill" cx="5" cy="13" r="1.4"/><circle class="fill" cx="13" cy="12" r="1.4"/><circle class="fill" cx="19" cy="14" r="1.4"/><circle class="fill" cx="8" cy="19" r="1.4"/><circle class="fill" cx="16" cy="19" r="1.4"/><path class="stroke" d="M6 6l6-1 6 2M5 13l8-1 6 2" opacity=".4"/></svg>`,(p)=>{
+  p.innerHTML=`<div class="hd"><h2>Packet Lab</h2><span class="sub">CSI/LiDAR point-cloud sim</span>
+    <div class="sp"></div><button class="btn danger" id="pkPulse">◉ PULSE</button></div>
+    <div class="grow"><canvas id="pkc" data-pt="pk"></canvas><div class="mini" id="pkv">0 pts</div>
+      <div class="legend">simulation + live CSI via bridge</div></div>
+    <div class="ctrls" style="flex-direction:column;align-items:stretch">
+      <label class="sl">DENSITY <input id="pkd" type="range" min="40" max="400" value="140"></label>
+      <div class="brow"><button class="btn" id="pkAuto">AUTO BLOOM</button><button class="btn" id="pkClr">CLEAR</button>
+        <button class="btn danger" id="pkTx">▸ SEND BLOOM (bridge)</button></div>
+      <div class="bnote">Simulates how LiDAR-style spatial mapping emerges from dense packet pulses: rays from origin bounce off the target, floor, ceiling and XYZ bounds, and each return plots a point. Real CSI from your ESP32/SDR bridge feeds the same cloud.</div>
+    </div>`;
+  let pts=[],yaw=0,density=140,auto=false,autoT=null;
+  $('#pkd',p).oninput=e=>density=+e.target.value;
+  function pulse(){const n=density;for(let i=0;i<n;i++){
+    const face=Math.random();let x,y,z;
+    if(face<0.4){x=rnd(-1,1);z=rnd(-1,1);y=Math.random()<0.5?-1:1;}            // floor/ceiling
+    else if(face<0.7){x=Math.random()<0.5?-1:1;y=rnd(-1,1);z=rnd(-1,1);}       // walls
+    else{const t=rnd(0.3,0.9);const a=rnd(0,6.28),e2=rnd(-1,1);                 // target cluster near origin ray
+      x=Math.cos(a)*0.3*t;y=e2*0.3;z=Math.sin(a)*0.3*t-0.2;}
+    pts.push({x,y,z,a:1});}
+    if(pts.length>2600)pts=pts.slice(pts.length-2600);
+    if(S.motion&&performance.now()-S.motion.ts<500)for(const b of S.motion.blobs)
+      pts.push({x:(b.cx-0.5)*2,y:(0.5-b.cy)*2,z:rnd(-0.3,0.3),a:1,hot:1});
+  }
+  $('#pkPulse',p).onclick=pulse;
+  $('#pkAuto',p).onclick=e=>{auto=!auto;e.target.classList.toggle('on',auto);
+    if(auto){autoT=setInterval(pulse,220);}else clearInterval(autoT);};
+  $('#pkClr',p).onclick=()=>{pts=[];};
+  $('#pkTx',p).onclick=()=>{if(BRIDGE.send({cmd:'bloom',count:density,ts:Date.now()}))toast('Packet bloom command sent to bridge');};
+  const cv=$('#pkc',p),g=cv.getContext('2d');
+  p.draw=()=>{const DPR=devicePixelRatio,w=cv.width=cv.clientWidth*DPR,h=cv.height=cv.clientHeight*DPR;
+    g.fillStyle='rgba(5,5,8,.35)';g.fillRect(0,0,w,h);yaw+=0.004;const cx=w/2,cy=h/2,sc=Math.min(w,h)*0.32;
+    const c=Math.cos(yaw),s=Math.sin(yaw);
+    pts=pts.filter(pt=>{pt.a*=0.994;return pt.a>0.05;});
+    for(const pt of pts){const x=pt.x*c-pt.z*s,z=pt.x*s+pt.z*c,pr=1/(2.4+z);
+      const sx=cx+x*sc*pr*2.4,sy=cy+pt.y*sc*pr*2.4;
+      g.fillStyle=pt.hot?`rgba(255,42,58,${pt.a})`:`rgba(235,235,240,${pt.a*0.8})`;
+      g.fillRect(sx,sy,1.6*DPR,1.6*DPR);}
+    // origin
+    g.fillStyle='#ffb020';g.beginPath();g.arc(cx,cy,3*DPR,0,7);g.fill();
+    $('#pkv',p).textContent=pts.length+' pts';
+  };
+});
+
+/* ================= PAGE: ASK / HELP + GIS ======================= */
+definePage('ask','ASK',`<svg viewBox="0 0 24 24"><path class="stroke" d="M9 9a3 3 0 115 2.2c-1 .8-1.5 1.3-1.5 2.3"/><circle class="fill" cx="12.4" cy="17" r="1.1"/><rect class="stroke" x="3" y="3" width="18" height="18" rx="3"/></svg>`,(p)=>{
+  const QA=[
+    ['how do i turn on the camera','Go to SCOPE or PERMS and tap START / GRANT ALL, then accept the camera prompt. If it is blocked, open the artifact full-screen in a new tab.'],
+    ['camera wont work','Camera needs permission and a secure full-screen context. Use PERMS > GRANT ALL, accept prompts; if still black, open the app in its own browser tab.'],
+    ['how to purify water','Rolling boil 1 min (3 min above 6500 ft), or filter, or chemical tabs. Avoid stagnant water.'],
+    ['bear encounter','Talk calm and loud, group up, do not run. Grizzly charge: play dead, protect neck. Black bear attack: fight back. Bear spray at 30-60 ft.'],
+    ['lost in the woods','STOP: Stop, Think, Observe, Plan. Stay put if unsure. 3 of anything = distress. Stay warm and visible, conserve phone, text uses less signal than calls.'],
+    ['send sos','Open SOS, write your situation, tap LOCK GPS + BUILD SOS, then Share/Text or LoRa (via bridge).'],
+    ['what is csi radar','RADAR plots real camera-detected motion (sized small animal to human) and any device the SDR bridge feeds. Static objects show hollow, moving ones get tracked live.'],
+    ['identify a plant or rock','Open FIELD ID, pick the category, set the feature filters to narrow the candidates. It is a field key, not a photo scanner.'],
+    ['sunrise sunset','Open SKY after enabling location — it shows sun elevation plus sunrise and sunset times, and the sun also rides the COMPASS dial.'],
+  ];
+  p.innerHTML=`<div class="hd"><h2>Ask / Help</h2><span class="sub">online AI · offline guide · GIS</span></div>
+   <div class="grow scroll" style="padding:10px;display:flex;flex-direction:column;gap:9px">
+     <div class="bcard"><div class="btitle">Online AI</div>
+       <div class="brow"><a class="btn" target="_blank" rel="noopener" href="https://gemini.google.com/app">🤖 Ask Gemini</a>
+         <a class="btn" target="_blank" rel="noopener" href="https://claude.ai/new">Ask Claude</a></div>
+       <div class="bnote">Opens an AI assistant in your browser (needs signal). For no-signal use the offline guide below.</div></div>
+     <div class="bcard"><div class="btitle">Offline Q&amp;A</div>
+       <input id="askq" type="text" placeholder="type a question (camera, water, bear, sos, lost…)" style="width:100%">
+       <div id="aska" style="margin-top:7px"></div></div>
+     <div class="bcard"><div class="btitle">Public GIS / Maps</div><div class="brow">
+       <a class="btn" target="_blank" rel="noopener" href="https://www.nps.gov/subjects/digital/active-gis-data.htm">NPS GIS</a>
+       <a class="btn" target="_blank" rel="noopener" href="https://apps.nationalmap.gov/viewer/">USGS Topo</a>
+       <a class="btn" target="_blank" rel="noopener" href="https://www.fs.usda.gov/visit/maps">USFS Maps</a>
+       <a class="btn" target="_blank" rel="noopener" href="https://caltopo.com">CalTopo</a>
+       <a class="btn" id="gisHere" target="_blank" rel="noopener" href="https://maps.google.com">📍 My location</a></div>
+       <div class="bnote">Public layers only. Private law-enforcement drone, Flock, and CCTV feeds are not accessible and are not included.</div></div>
+   </div>`;
+  const ans=$('#aska',p),qi=$('#askq',p);
+  function search(){const q=qi.value.toLowerCase().trim();if(!q){ans.innerHTML='';return;}
+    const hits=QA.map(([k,a])=>({a,s:k.split(' ').filter(w=>q.includes(w)||w.includes(q)).length+(k.includes(q)?2:0)}))
+      .filter(x=>x.s>0).sort((x,y)=>y.s-x.s).slice(0,3);
+    ans.innerHTML=hits.length?hits.map(h=>`<div class="bnote" style="color:#fff;margin:5px 0;padding:6px;background:rgba(255,42,58,.07);border-radius:6px">${h.a}</div>`).join(''):'<div class="bnote">No match — try: camera, water, bear, sos, lost, plant, sunrise.</div>';}
+  qi.oninput=search;
+  $('#gisHere',p).onclick=()=>geoNow(pos=>{if(pos)$('#gisHere',p).href=`https://maps.google.com/?q=${pos.lat},${pos.lon}`;});
+});
+
+/* ================= PAGE: LIGHT (flashlight) ===================== */
+definePage('light','LIGHT',`<svg viewBox="0 0 24 24"><path class="stroke" d="M9 2h6v4l-1 2v13a1 1 0 01-1 1h-2a1 1 0 01-1-1V8L9 6z"/><path class="fill" d="M10 9h4v2h-4z"/></svg>`,(p)=>{
+  p.innerHTML=`<div class="hd"><h2>Flashlight</h2><span class="sub">camera torch + screen light</span></div>
+    <div class="grow" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px" id="lwrap">
+      <button id="torchBig" style="width:150px;height:150px;border-radius:50%;border:3px solid #ffd54a;background:radial-gradient(circle,#2a2200,#0a0a0c);color:#ffd54a;font-size:15px;font-family:var(--mono);cursor:pointer;box-shadow:0 0 20px rgba(255,200,40,.4)">◉ TORCH</button>
+      <div class="mini" id="lstat">off</div></div>
+    <div class="ctrls">
+      <button class="btn danger" id="lOff" style="font-weight:700">⏻ ALL OFF</button>
+      <button class="btn" id="lScreen">🔆 Screen light</button>
+      <button class="btn danger" id="lSOS">🆘 SOS blink</button>
+      <button class="btn" id="lStrobe">⚡ Strobe</button>
+      <label class="sl">BRIGHT <input id="lbri" type="range" min="40" max="100" value="100"></label></div>`;
+  let track=null,on=false,screen=false,blink=null;
+  const ls=$('#lightscreen');
+  async function getTrack(){ if(track)return track;
+    try{const st=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});track=st.getVideoTracks()[0];}catch(e){}
+    return track;}
+  async function torch(v){ const t=await getTrack();
+    const caps=t&&t.getCapabilities&&t.getCapabilities();
+    if(caps&&caps.torch){try{await t.applyConstraints({advanced:[{torch:v}]});on=v;upd();return true;}catch(e){}}
+    return false;}
+  function screenLight(v){screen=v;ls.classList.toggle('on',v);ls.style.opacity=($('#lbri',p).value/100);upd();}
+  function upd(){$('#lstat',p).textContent=((on?'TORCH ON':'')+(screen?' SCREEN ON':'')).trim()||'off';
+    const b=$('#torchBig',p);b.textContent=on?'◉ TORCH ON':'○ TORCH OFF';
+    b.style.boxShadow=on?'0 0 40px rgba(255,220,80,.9)':'0 0 20px rgba(255,200,40,.4)';
+    b.style.background=on?'radial-gradient(circle,#5a4800,#1a1500)':'radial-gradient(circle,#2a2200,#0a0a0c)';}
+  $('#torchBig',p).onclick=async()=>{ if(on){await torch(false);on=false;upd();return;}
+    const ok=await torch(true); if(!ok){toast('No hardware torch — using screen light');screenLight(!screen);} };
+  $('#lOff',p).onclick=()=>{stopBlink();toast('All lights off');};
+  $('#lScreen',p).onclick=()=>screenLight(!screen);
+  $('#lbri',p).oninput=()=>{if(screen)ls.style.opacity=($('#lbri',p).value/100);};
+  function stopBlink(){if(blink){clearTimeout(blink);blink=null;}torch(false);ls.classList.remove('on');screen=false;on=false;upd();}
+  $('#lStrobe',p).onclick=async()=>{ if(blink){stopBlink();return;} let s=false;
+    const t=await getTrack();const caps=t&&t.getCapabilities&&t.getCapabilities();const hw=caps&&caps.torch;
+    (function tick(){s=!s; if(hw)torch(s); else {ls.classList.toggle('on',s);ls.style.opacity=1;} blink=setTimeout(tick,90);})();toast('Strobe on — tap again to stop');};
+  $('#lSOS',p).onclick=async()=>{ if(blink){stopBlink();return;}
+    const pat=[200,200,200,200,200,600,  600,200,600,200,600,600,  200,200,200,200,200,1400]; // · · · — — — · · ·
+    const t=await getTrack();const caps=t&&t.getCapabilities&&t.getCapabilities();const hw=caps&&caps.torch;
+    let i=0;(function step(){const onNow=i%2===0;if(hw)torch(onNow);else{ls.classList.toggle('on',onNow);ls.style.opacity=1;}
+      blink=setTimeout(step,pat[i%pat.length]);i++;})();toast('SOS light signal — tap again to stop');};
+  p.onHide=()=>stopBlink();
+});
+
+/* ================= PAGE: MAP (offline-caching slippy map) ======= */
+const TILEDB={db:null};
+function tdb(){return new Promise(res=>{try{const r=indexedDB.open('allalone_tiles',1);
+  r.onupgradeneeded=()=>r.result.createObjectStore('t');r.onsuccess=()=>{TILEDB.db=r.result;res(r.result);};r.onerror=()=>res(null);}catch(e){res(null);}});}
+async function tileGet(k){const db=await tdb();if(!db)return null;return new Promise(res=>{try{const q=db.transaction('t','readonly').objectStore('t').get(k);q.onsuccess=()=>res(q.result||null);q.onerror=()=>res(null);}catch(e){res(null);}});}
+async function tilePut(k,b){const db=await tdb();if(!db)return;try{db.transaction('t','readwrite').objectStore('t').put(b,k);}catch(e){}}
+function lon2px(lon,z){return (lon+180)/360*256*(1<<z);}
+function lat2py(lat,z){const s=Math.sin(lat*Math.PI/180);return (0.5-Math.log((1+s)/(1-s))/(4*Math.PI))*256*(1<<z);}
+function px2lon(px,z){return px/(256*(1<<z))*360-180;}
+function py2lat(py,z){const n=Math.PI-2*Math.PI*py/(256*(1<<z));return 180/Math.PI*Math.atan(0.5*(Math.exp(n)-Math.exp(-n)));}
+const MAPLAYERS=[
+ {id:'osm',name:'Street (OSM)',tpl:'https://tile.openstreetmap.org/{z}/{x}/{y}.png'},
+ {id:'sat',name:'Satellite (Esri)',tpl:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'},
+ {id:'topo',name:'Topo (OpenTopoMap)',tpl:'https://a.tile.opentopomap.org/{z}/{x}/{y}.png'},
+ {id:'esritopo',name:'Topo (Esri)',tpl:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}'},
+ {id:'terrain',name:'Terrain (Esri)',tpl:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Terrain_Base/MapServer/tile/{z}/{y}/{x}'},
+ {id:'ocean',name:'Ocean (Esri)',tpl:'https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}'},
+ {id:'dark',name:'Dark (Carto)',tpl:'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png'},
+ {id:'light',name:'Light (Carto)',tpl:'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png'},
+ {id:'cycle',name:'Cycle (CyclOSM)',tpl:'https://a.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png'},
+ {id:'humanitarian',name:'Humanitarian',tpl:'https://a.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png'},
+ {id:'custom',name:'Custom / API key…',tpl:''},
+];
+let CURLAYER={id:'osm',tpl:MAPLAYERS[0].tpl,key:''};
+function tileURL(tpl,z,x,y,key){return tpl.replace('{z}',z).replace('{x}',x).replace('{y}',y).replace('{s}','a').replace('{key}',key||'').replace('{apikey}',key||'');}
+async function fetchTile(z,x,y){const key=CURLAYER.id+'/'+z+'/'+x+'/'+y;const c=await tileGet(key);if(c)return URL.createObjectURL(c);
+  if(!CURLAYER.tpl)return null;const url=tileURL(CURLAYER.tpl,z,x,y,CURLAYER.key);
+  try{const r=await fetch(url);if(!r.ok)throw 0;const b=await r.blob();tilePut(key,b);return URL.createObjectURL(b);}catch(e){return null;}}
+definePage('map','MAP',`<svg viewBox="0 0 24 24"><path class="stroke" d="M9 3L3 5v16l6-2 6 2 6-2V3l-6 2-6-2z"/><path class="stroke" d="M9 3v16M15 5v16"/></svg>`,(p)=>{
+  p.innerHTML=`<div class="hd"><h2>Map</h2><span class="sub">multi-layer · caches off-grid</span>
+    <div class="sp"></div><button class="btn" id="mGps">📍 Me</button></div>
+    <div class="grow" id="mview" style="overflow:hidden;background:#0a0a0c;touch-action:none;cursor:grab">
+      <div id="mtiles" style="position:absolute;inset:0"></div>
+      <div id="mmark" style="position:absolute;inset:0;pointer-events:none"></div>
+      <div class="legend" id="mattr">© OpenStreetMap</div>
+      <div class="mini" id="mstat">drag to pan · pinch/±</div></div>
+    <div class="ctrls" style="flex-direction:column;align-items:stretch">
+      <div class="brow"><span class="chip">LAYER</span><select id="mLayer" style="flex:1"></select></div>
+      <div class="brow" id="mCustomRow" style="display:none">
+        <input id="mCustom" type="text" placeholder="tile URL: https://…/{z}/{x}/{y}.png  (use {key} for API key)" style="flex:1">
+        <input id="mKey" type="text" placeholder="API key" style="width:100px"><button class="btn" id="mCustomGo">SET</button></div>
+      <div class="brow"><button class="btn" id="mZin">＋</button><button class="btn" id="mZout">－</button>
+        <button class="btn" id="mPin">📌 Drop pin</button>
+        <button class="btn danger" id="mCache">⬇ Cache area</button>
+        <span class="chip">z<b id="mz">5</b></span><span class="chip" id="mll">—</span></div></div>`;
+  const MAP={lat:40.4,lon:-105.0,zoom:12,tcache:new Map(),pins:[],follow:false};
+  try{MAP.pins=JSON.parse(localStorage.getItem('sv_pins')||'[]');}catch(e){}
+  const view=$('#mview',p),tiles=$('#mtiles',p),mark=$('#mmark',p);
+  function render(){const W=view.clientWidth,H=view.clientHeight;const z=MAP.zoom;
+    const cpx=lon2px(MAP.lon,z),cpy=lat2py(MAP.lat,z),tlx=cpx-W/2,tly=cpy-H/2,n=1<<z;
+    const x0=Math.floor(tlx/256),x1=Math.floor((tlx+W)/256),y0=Math.floor(tly/256),y1=Math.floor((tly+H)/256);
+    const need=new Set();
+    for(let x=x0;x<=x1;x++)for(let y=y0;y<=y1;y++){if(y<0||y>=n)continue;const tx=((x%n)+n)%n;const key=z+'/'+tx+'/'+y+'@'+x;
+      need.add(key);let img=MAP.tcache.get(key);
+      if(!img){img=new Image();img.width=img.height=256;img.style.position='absolute';img.style.background='#141418';
+        tiles.appendChild(img);MAP.tcache.set(key,img);fetchTile(z,tx,y).then(u=>{if(u)img.src=u;});}
+      img.style.left=(x*256-tlx)+'px';img.style.top=(y*256-tly)+'px';}
+    for(const [key,img] of MAP.tcache){if(!need.has(key)){img.remove();MAP.tcache.delete(key);}}
+    // markers
+    mark.innerHTML='';
+    const place=(lat,lon,html)=>{const x=lon2px(lon,z)-tlx,y=lat2py(lat,z)-tly;const d=el('div','');
+      d.style.cssText=`position:absolute;left:${x}px;top:${y}px;transform:translate(-50%,-50%)`;d.innerHTML=html;mark.appendChild(d);};
+    MAP.pins.forEach((pn,i)=>place(pn.lat,pn.lon,`<div style="color:#ff2a3a;font-size:18px;cursor:pointer" data-pin="${i}">📌</div>`));
+    if(S.pos)place(S.pos.lat,S.pos.lon,`<div style="width:16px;height:16px;border-radius:50%;background:#38c0ff;border:2px solid #fff;box-shadow:0 0 10px #38c0ff"></div>`);
+    mark.querySelectorAll('[data-pin]').forEach(b=>b.style.pointerEvents='auto');
+    mark.onclick=e=>{const b=e.target.closest('[data-pin]');if(b){const pn=MAP.pins[+b.dataset.pin];
+      showPop(e.clientX,e.clientY,'WAYPOINT',[['Lat',pn.lat.toFixed(5)],['Lon',pn.lon.toFixed(5)],['Saved',new Date(pn.t).toLocaleString()]],false);}};
+    $('#mz',p).textContent=MAP.zoom;$('#mll',p).textContent=MAP.lat.toFixed(4)+','+MAP.lon.toFixed(4);}
+  // pan
+  let drag=null;
+  view.addEventListener('pointerdown',e=>{drag={x:e.clientX,y:e.clientY,lat:MAP.lat,lon:MAP.lon};view.setPointerCapture(e.pointerId);view.style.cursor='grabbing';});
+  view.addEventListener('pointermove',e=>{if(!drag)return;const z=MAP.zoom;
+    const dx=e.clientX-drag.x,dy=e.clientY-drag.y;
+    MAP.lon=px2lon(lon2px(drag.lon,z)-dx,z);MAP.lat=py2lat(lat2py(drag.lat,z)-dy,z);render();});
+  view.addEventListener('pointerup',()=>{drag=null;view.style.cursor='grab';});
+  view.addEventListener('wheel',e=>{e.preventDefault();MAP.zoom=clamp(MAP.zoom+(e.deltaY<0?1:-1),2,19);render();},{passive:false});
+  $('#mZin',p).onclick=()=>{MAP.zoom=clamp(MAP.zoom+1,2,19);render();};
+  $('#mZout',p).onclick=()=>{MAP.zoom=clamp(MAP.zoom-1,2,19);render();};
+  $('#mGps',p).onclick=()=>geoNow(pos=>{if(pos){MAP.lat=pos.lat;MAP.lon=pos.lon;MAP.zoom=Math.max(MAP.zoom,15);render();toast('Centered on GPS');}else toast('No GPS fix');});
+  $('#mPin',p).onclick=()=>{MAP.pins.push({lat:MAP.lat,lon:MAP.lon,t:Date.now()});
+    localStorage.setItem('sv_pins',JSON.stringify(MAP.pins));render();toast('Pin dropped at center');};
+  $('#mCache',p).onclick=async()=>{const W=view.clientWidth,H=view.clientHeight;let count=0,total=0;
+    toast('Caching area for offline…');
+    for(let dz=0;dz<=2;dz++){const z=Math.min(MAP.zoom+dz,19);const cpx=lon2px(MAP.lon,z),cpy=lat2py(MAP.lat,z);
+      const tlx=cpx-W/2,tly=cpy-H/2,n=1<<z;
+      const x0=Math.floor(tlx/256),x1=Math.floor((tlx+W)/256),y0=Math.floor(tly/256),y1=Math.floor((tly+H)/256);
+      for(let x=x0;x<=x1;x++)for(let y=y0;y<=y1;y++){if(y<0||y>=n)continue;total++;
+        const tx=((x%n)+n)%n;const u=await fetchTile(z,tx,y);if(u)count++;}}
+    toast('Cached '+count+'/'+total+' tiles for offline use');};
+  // layer picker
+  const ATTR={osm:'© OpenStreetMap',sat:'Esri, Maxar, Earthstar',topo:'© OpenTopoMap (CC-BY-SA)',
+    esritopo:'Esri',terrain:'Esri',ocean:'Esri',dark:'© CARTO',light:'© CARTO',cycle:'CyclOSM',humanitarian:'HOT OSM',custom:'custom source'};
+  const lsel=$('#mLayer',p);MAPLAYERS.forEach(l=>{const o=el('option','',l.name);o.value=l.id;lsel.appendChild(o);});
+  lsel.value=CURLAYER.id;
+  function setLayer(id,tpl,key){CURLAYER={id,tpl,key:key||''};MAP.tcache.forEach(img=>img.remove());MAP.tcache.clear();
+    tiles.innerHTML='';$('#mattr',p).textContent=ATTR[id]||'';render();}
+  lsel.onchange=()=>{const l=MAPLAYERS.find(x=>x.id===lsel.value);
+    $('#mCustomRow',p).style.display=l.id==='custom'?'flex':'none';
+    if(l.id!=='custom')setLayer(l.id,l.tpl);};
+  $('#mCustomGo',p).onclick=()=>{const t=$('#mCustom',p).value.trim();if(!t)return toast('Enter a tile URL template');
+    setLayer('custom',t,$('#mKey',p).value.trim());toast('Custom layer set');};
+  let inited=false;
+  p.onShow=()=>{ if(!inited){inited=true;geoNow(pos=>{if(pos){MAP.lat=pos.lat;MAP.lon=pos.lon;MAP.zoom=14;}render();});} render();};
+  p.draw=()=>{}; // event-driven, not per-frame
+});
+
+/* ================= PAGE: LORA MESSAGING ======================== */
+definePage('lora','LORA',`<svg viewBox="0 0 24 24"><path class="stroke" d="M4 12a8 8 0 018-8M4 12a8 8 0 008 8M20 12a8 8 0 00-8-8"/><circle class="fill" cx="12" cy="12" r="2.4"/><path class="stroke" d="M7 12a5 5 0 015-5M17 12a5 5 0 00-5-5"/></svg>`,(p)=>{
+  p.innerHTML=`<div class="hd"><h2>LoRa Messaging</h2><span class="sub">serial dongle or bridge radio</span>
+    <div class="sp"></div><span class="pill" id="lorast">○ offline</span></div>
+    <div class="ctrls" style="border-top:0;border-bottom:1px solid var(--line)">
+      <button class="btn" id="loraSerial">🔌 Connect dongle</button>
+      <button class="btn" id="loraBridge">📡 Use bridge</button>
+      <select id="loraBaud"><option>9600</option><option>115200</option><option>57600</option></select>
+      <input id="loraCall" type="text" placeholder="call sign (optional)" style="width:120px"></div>
+    <div class="grow scroll" id="loralog" style="padding:9px;display:flex;flex-direction:column;gap:5px"></div>
+    <div class="ctrls">
+      <input id="loratx" type="text" placeholder="message…" style="flex:1">
+      <button class="btn danger" id="lorasend">▸ SEND</button></div>`;
+  const LORA={port:null,reader:null,mode:null};
+  const status=(m,on)=>{$('#lorast',p).textContent=(on?'● ':'○ ')+m;$('#lorast',p).className='pill'+(on?' on':'');};
+  function addMsg(dir,msg){S.loraLog=S.loraLog||[];if(dir)S.loraLog.push({dir,msg,t:Date.now()});render();}
+  function render(){const l=$('#loralog',p);if(!l)return;l.innerHTML=(S.loraLog||[]).slice(-80).map(m=>
+    `<div style="align-self:${m.dir==='tx'?'flex-end':'flex-start'};max-width:80%;background:${m.dir==='tx'?'rgba(255,42,58,.15)':'rgba(56,192,255,.12)'};border:1px solid ${m.dir==='tx'?'rgba(255,42,58,.4)':'rgba(56,192,255,.4)'};border-radius:8px;padding:5px 8px;font-size:12px;color:#fff">${esc(m.msg)}<div style="font-size:8px;color:var(--grey)">${new Date(m.t).toLocaleTimeString('en-GB')}</div></div>`).join('');
+    l.scrollTop=l.scrollHeight;}
+  function esc(s){return String(s).replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));}
+  window.addEventListener('lora',render);
+  $('#loraSerial',p).onclick=async()=>{
+    if(!('serial'in navigator)){toast('WebSerial not available here — use the installed app or Chrome');return;}
+    try{const port=await navigator.serial.requestPort();await port.open({baudRate:+$('#loraBaud',p).value});
+      LORA.port=port;LORA.mode='serial';status('dongle linked',true);toast('LoRa dongle connected');
+      const dec=new TextDecoderStream();port.readable.pipeTo(dec.writable).catch(()=>{});const reader=dec.readable.getReader();LORA.reader=reader;
+      let buf='';(async()=>{try{while(true){const {value,done}=await reader.read();if(done)break;buf+=value;
+        let i;while((i=buf.search(/[\r\n]/))>=0){const line=buf.slice(0,i).trim();buf=buf.slice(i+1);if(line)addMsg('rx',line);}}}catch(e){}})();
+    }catch(e){toast('Serial: '+(e.message||e.name));}};
+  $('#loraBridge',p).onclick=()=>{LORA.mode='bridge';status('via bridge',true);toast('LoRa routed through SDR bridge');};
+  async function send(){const t=$('#loratx',p).value.trim();if(!t)return;const call=$('#loraCall',p).value.trim();
+    const payload=call?call+': '+t:t;
+    if(LORA.mode==='serial'&&LORA.port&&LORA.port.writable){try{const wr=LORA.port.writable.getWriter();
+      await wr.write(new TextEncoder().encode(payload+'\r\n'));wr.releaseLock();addMsg('tx',payload);}catch(e){toast('Write failed');}}
+    else if(LORA.mode==='bridge'||BRIDGE.ws){if(BRIDGE.send({cmd:'lora-tx',msg:payload}))addMsg('tx',payload);}
+    else toast('Connect a dongle or the bridge first');
+    $('#loratx',p).value='';}
+  $('#lorasend',p).onclick=send;
+  $('#loratx',p).addEventListener('keydown',e=>{if(e.key==='Enter')send();});
+  render();
+});
+
+/* ================= MEDICAL ID (on-device, every page) =========== */
+function loadMed(){try{return JSON.parse(localStorage.getItem('sv_medid')||'null')||{};}catch(e){return{};}}
+function saveMed(m){try{localStorage.setItem('sv_medid',JSON.stringify(m));}catch(e){}}
+let MED=null;
+function initMedID(){
+  if(MED)return;
+  const css=el('style',null,`
+   #medBtn{font-family:var(--mono);font-size:10px;letter-spacing:.5px;color:#ffd54a;background:#3a2d00;
+     border:1px solid #ffd54a;border-radius:7px;padding:3px 8px;cursor:pointer;white-space:nowrap;font-weight:700;
+     box-shadow:0 0 10px rgba(255,200,40,.55)}
+   #medBtn:hover{background:#4a3a00;color:#ffe680}
+   #medwrap{position:fixed;inset:0;z-index:130;background:rgba(0,0,0,.94);display:none;flex-direction:column}
+   #medwrap.on{display:flex}
+   #medtop{display:flex;align-items:center;gap:8px;padding:9px 11px;border-bottom:2px solid #e01020;background:#120306}
+   #medtop b{color:#e01020;letter-spacing:2px;font-size:15px}
+   #medbody{flex:1;overflow:auto;padding:11px;display:flex;flex-direction:column;gap:9px}
+   .medsec{background:var(--char);border:1px solid var(--line);border-radius:10px;padding:10px}
+   .medsec h4{margin:0 0 6px;color:#e01020;font-size:11px;letter-spacing:1px;text-transform:uppercase}
+   .medrow{display:flex;justify-content:space-between;gap:10px;font-size:12px;padding:3px 0;border-bottom:1px solid rgba(255,42,58,.08)}
+   .medrow b{color:#fff}
+   .medsec input,.medsec textarea{width:100%;font-family:var(--mono);font-size:12px;color:#fff;
+     background:rgba(24,24,28,.8);border:1px solid var(--line);border-radius:6px;padding:6px;margin:3px 0}
+   .medlrow{display:flex;gap:5px;margin:4px 0;flex-wrap:wrap}
+   .medlrow input{flex:1;min-width:90px;margin:0}
+   .medtel{color:#38c0ff;text-decoration:none}
+   .medbig{font-size:12px;color:#8a8a92}`);
+  document.head.appendChild(css);
+  const w=el('div');w.id='medwrap';
+  w.innerHTML=`<div id="medtop"><b>⚕ MEDICAL ID</b><div class="medbig" id="medname"></div>
+     <div style="flex:1"></div>
+     <button class="btn" id="medEdit">✎ Edit</button>
+     <button class="btn danger" id="medClose">✕</button></div>
+   <div id="medbody"></div>`;
+  document.body.appendChild(w);
+  MED={w,body:$('#medbody',w),data:loadMed(),mode:'read'};
+  $('#medClose',w).onclick=()=>{w.classList.remove('on');};
+  $('#medEdit',w).onclick=()=>{MED.mode=MED.mode==='read'?'edit':'read';
+    $('#medEdit',w).textContent=MED.mode==='edit'?'✓ Done':'✎ Edit';render();};
+  function nm(){const m=MED.data;$('#medname',w).textContent=m.name?m.name+(m.blood?' · '+m.blood:''):'';}
+  function render(){nm();MED.mode==='edit'?renderEdit():renderRead();}
+  function renderRead(){const m=MED.data,b=MED.body;b.innerHTML='';
+    const any=m.name||m.conditions||m.allergies||(m.meds&&m.meds.length)||(m.contacts&&m.contacts.length);
+    if(!any){b.innerHTML='<div class="medsec"><div class="medbig">No medical info saved yet. Tap <b style="color:#fff">✎ Edit</b> to add your conditions, medications, physicians and emergency contacts. It is stored only on this device.</div></div>';return;}
+    const sec=(title,html)=>{const d=el('div','medsec');d.innerHTML=`<h4>${title}</h4>${html}`;b.appendChild(d);};
+    let id='';if(m.name)id+=`<div class="medrow"><span>Name</span><b>${esc(m.name)}</b></div>`;
+    if(m.dob)id+=`<div class="medrow"><span>DOB</span><b>${esc(m.dob)}</b></div>`;
+    if(m.blood)id+=`<div class="medrow"><span>Blood type</span><b>${esc(m.blood)}</b></div>`;
+    id+=`<div class="medrow"><span>Organ donor</span><b>${m.donor?'Yes':'—'}</b></div>`;
+    if(id)sec('Identity',id);
+    if(m.allergies)sec('Allergies &amp; reactions',`<div style="color:#ff6a78;font-size:13px">${esc(m.allergies)}</div>`);
+    if(m.conditions)sec('Medical conditions',`<div style="color:#fff;font-size:13px;white-space:pre-wrap">${esc(m.conditions)}</div>`);
+    if(m.meds&&m.meds.length)sec('Medications',m.meds.map(x=>`<div class="medrow"><b>${esc(x.name||'')}</b><span>${esc(x.dose||'')} ${esc(x.freq||'')}</span></div>`).join(''));
+    if(m.docs&&m.docs.length)sec('Physicians',m.docs.map(x=>`<div class="medrow"><span><b>${esc(x.name||'')}</b> ${esc(x.spec||'')}</span>${x.phone?`<a class="medtel" href="tel:${esc(x.phone)}">${esc(x.phone)}</a>`:''}</div>`).join(''));
+    if(m.contacts&&m.contacts.length)sec('Emergency contacts',m.contacts.map(x=>`<div class="medrow"><span><b>${esc(x.name||'')}</b> ${esc(x.rel||'')}</span>${x.phone?`<a class="medtel" href="tel:${esc(x.phone)}">${esc(x.phone)}</a> ${x.phone?`<a class="medtel" href="sms:${esc(x.phone)}">✉</a>`:''}`:''}</div>`).join(''));
+    if(m.notes)sec('Notes',`<div style="color:#fff;white-space:pre-wrap">${esc(m.notes)}</div>`);
+  }
+  function renderEdit(){const m=MED.data,b=MED.body;b.innerHTML='';
+    const bind=(key)=>{const i=document.activeElement;return (e)=>{m[key]=e.target.value;saveMed(m);nm();};};
+    function fieldSec(title,rows){const d=el('div','medsec');d.innerHTML=`<h4>${title}</h4>`;
+      rows.forEach(([ph,key,ta])=>{const inp=el(ta?'textarea':'input','');inp.placeholder=ph;inp.value=m[key]||'';
+        if(ta)inp.rows=2;inp.oninput=e=>{m[key]=e.target.value;saveMed(m);nm();};d.appendChild(inp);});
+      b.appendChild(d);return d;}
+    const idSec=fieldSec('Identity',[['Full name','name'],['Date of birth','dob'],['Blood type (e.g. O+)','blood']]);
+    const dl=el('label','');dl.style.cssText='display:flex;gap:7px;align-items:center;font-size:12px;color:#fff;margin-top:4px';
+    const dc=el('input','');dc.type='checkbox';dc.checked=!!m.donor;dc.onchange=e=>{m.donor=e.target.checked;saveMed(m);};
+    dl.append(dc,document.createTextNode(' Organ donor'));idSec.appendChild(dl);
+    fieldSec('Allergies & reactions',[['Penicillin, bee stings, latex…','allergies',1]]);
+    fieldSec('Medical conditions / problems',[['Diabetes, asthma, epilepsy…','conditions',1]]);
+    listSec('Medications','meds',[['Medication','name'],['Dose','dose'],['Schedule','freq']]);
+    listSec('Physicians','docs',[['Doctor name','name'],['Specialty','spec'],['Phone','phone']]);
+    listSec('Emergency contacts','contacts',[['Name','name'],['Relationship','rel'],['Phone','phone']]);
+    fieldSec('Notes',[['Anything responders should know…','notes',1]]);
+    function listSec(title,arrKey,cols){const d=el('div','medsec');d.innerHTML=`<h4>${title}</h4>`;
+      if(!m[arrKey])m[arrKey]=[];const list=el('div','');d.appendChild(list);
+      function draw(){list.innerHTML='';m[arrKey].forEach((row,i)=>{const r=el('div','medlrow');
+        cols.forEach(([ph,key])=>{const inp=el('input','');inp.placeholder=ph;inp.value=row[key]||'';
+          inp.oninput=e=>{row[key]=e.target.value;saveMed(m);};r.appendChild(inp);});
+        const x=el('button','btn','✕');x.onclick=()=>{m[arrKey].splice(i,1);saveMed(m);draw();};r.appendChild(x);list.appendChild(r);});}
+      const add=el('button','btn','+ Add');add.onclick=()=>{m[arrKey].push({});saveMed(m);draw();};
+      d.appendChild(add);b.appendChild(d);draw();}
+  }
+  function esc(s){return String(s).replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));}
+  MED.open=()=>{MED.data=loadMed();MED.mode='read';$('#medEdit',w).textContent='✎ Edit';w.classList.add('on');render();};
+}
+function openMedID(){initMedID();MED.open();}
+
+/* ================= PER-PAGE HELP (how-to) ======================= */
+const HELP={
+ radar:['CSI / Motion Radar','Shows REAL motion the camera detects plus any device your SDR bridge feeds.','1. Open SCOPE and tap START to turn the camera on (allow it).','2. Come back here — moving things appear as red tracked targets sized bird→vehicle; still objects show hollow/white.','3. For RF device contacts, link an SDR in SOURCE.'],
+ cam:['Scope / Camera','1. Tap START (or ◉ ARM ALL up top) and ALLOW the camera prompt.','2. Pick a specific camera from the dropdown (Auto = front/back). Any webcam/USB cam shows here once allowed.','3. ZOOM slider = telescopic; filters recolor; RETICLE adds a crosshair; 🎯 FIRE takes a photo; ● REC records video.','If the screen stays black in a browser tab, open the app full-screen — some embeds block the camera.'],
+ source:['SDR Source / Bridge','Link a radio two ways:','• BRIDGE (best, e.g. RTL-SDR Blog V4): run allalone-bridge.py on your Pi/PC with the dongle, then type ws://<that-computer-IP>:8765 here and tap CONNECT.','• WebUSB: tap CLAIM RTL-SDR DONGLE on desktop Chrome (V4 tuner is better over the bridge).','Spectrum then feeds the waterfall, scatter and radar.'],
+ lora:['LoRa Messaging','• Dongle: plug a LoRa USB module, tap 🔌 Connect dongle (WebSerial — desktop or Android Chrome), pick the baud.','• Bridge: tap 📡 Use bridge to route messages through your SDR bridge radio.','Type a message and SEND. Incoming messages appear on the left.'],
+ map:['Map','• LAYER dropdown switches street / satellite / topo / terrain / dark / custom. Pick "Custom" to paste your own tile URL or API key.','• Drag to pan, ＋/－ zoom, 📍 centers on GPS.','• ⬇ Cache area downloads tiles so the map works OFF-GRID later.','• 📌 drops a waypoint.'],
+ emergency:['Emergency / SOS','1. Pick an incident type (fills a template).','2. Add details, tap 📍 LOCK GPS + BUILD SOS.','3. Share/Text it, open the Map link, or send 📡 LoRa SOS via the bridge.','✅ ALL CLEAR cancels a false alarm; 🧪 TEST is a safe drill (never dispatches).'],
+ deter:['Wildlife Deterrent','1. Pick the species for real do/don\'t guidance.','2. Tap a sound profile (boom/bell/siren/whistle/horn/growl) — it loops.','3. 🔊/🔇 mute, VOL ± change loudness, STOP ends it.'],
+ compass:['Compass','Tap ENABLE and allow motion. Tilt the phone and the dial moves in perspective; the ☀ sun rides the ring east→west.'],
+ sky:['Sky / Satellites','Tap ENABLE, allow location + motion, and point at the sky. You\'ll see the sun, bright stars and geostationary satellites with azimuth/elevation, plus sunrise/sunset.'],
+ emf:['EMF / Magnetometer','Tap START for a live µT reading. Tap ⌖ ZERO to set a baseline — then nearby metal or electronics shows up as an anomaly spike.'],
+ light:['Flashlight','TORCH toggles the camera flash (ALL OFF kills everything). Screen light / Strobe / SOS blink use the screen when there is no hardware torch.'],
+ perms:['Permissions','GRANT ALL requests camera, mic, location, motion and magnetometer at once. Accept each system prompt. Grant them one-by-one with the per-row buttons.'],
+ field:['Field ID & Finds','Pick a category (tracks/rocks/berries/plants/animals), set the feature filters to narrow the candidates, 📷 PHOTO the specimen, and 📍 LOG GPS FIND to save it with your location.'],
+ listen:['Wildlife Listen','Tap 🎙 MIC to analyze a call (pitch/rhythm). ● REC saves audio. DTMF: hold the speaker to your Baofeng to SEND repeater tones, or point the mic at it to DECODE incoming tones.'],
+ water:['Waterfall','Tap ◉ MIC (or link an SDR in SOURCE). Frequency runs left→right, newest at top scrolling down. The table lists detected devices.'],
+ gen:['Waveform Generator','Pick a wave, set FREQ/VOL, tap EMIT for a continuous tone or a burst mode. Audio range only — phones can\'t emit RF.'],
+ tx:['TX / Inject','Sends transmit/inject COMMANDS to your own authorized bridge hardware — the phone transmits nothing itself. Connect the bridge in SOURCE first.'],
+};
+let HLP=null;
+function initHelp(){ if(HLP)return;
+  const css=el('style',null,`#helpBtn{font-family:var(--mono);font-weight:700;color:var(--cyan2);background:rgba(40,40,46,.6);
+     border:1px solid var(--line);border-radius:50%;width:22px;height:22px;cursor:pointer;line-height:1}
+   #helpwrap{position:fixed;inset:0;z-index:132;background:rgba(0,0,0,.92);display:none;align-items:center;justify-content:center;padding:16px}
+   #helpwrap.on{display:flex}
+   #helpbox{max-width:420px;width:100%;max-height:80%;overflow:auto;background:var(--char);border:1px solid var(--line);border-radius:12px;padding:14px}
+   #helpbox h3{margin:0 0 8px;color:var(--cyan2);font-size:15px}
+   #helpbox p{font-size:13px;color:#fff;line-height:1.55;margin:6px 0}`);
+  document.head.appendChild(css);
+  const w=el('div');w.id='helpwrap';w.innerHTML=`<div id="helpbox"></div>`;
+  w.onclick=e=>{if(e.target===w)w.classList.remove('on');};
+  document.body.appendChild(w);HLP=w;
+}
+function openHelp(){initHelp();const id=PAGES[activeIdx]&&PAGES[activeIdx].id;
+  const h=HELP[id]||['This page','Use the controls at the bottom. Tap ◉ ARM ALL at the top to grant camera, mic and motion.'];
+  $('#helpbox',HLP).innerHTML=`<h3>❓ ${h[0]}</h3>`+h.slice(1).map(s=>`<p>${s}</p>`).join('')+`<p style="color:var(--grey);font-size:11px">Tap outside to close.</p>`;
+  HLP.classList.add('on');}
+
+/* ================= BUILD UI ====================================== */
+let activeIdx=0;
+// group + order the side rail so it reads top-to-bottom by purpose
+const GRP=[['SENSE',['radar','cam','compass','sky']],
+  ['SIGNAL',['water','scatter','sound','gen','csi','packet','uv','heat','mesh']],
+  ['RF/SDR',['source','tx','lora','burst','emf']],
+  ['FIELD',['field','listen','deter','map']],
+  ['SAFETY',['sos','light','perms']]];
+const order=[];GRP.forEach(([_,ids])=>ids.forEach(id=>{const pg=PAGES.find(x=>x.id===id);if(pg&&!order.includes(pg))order.push(pg);}));
+PAGES.forEach(pg=>{if(!order.includes(pg))order.push(pg);}); // any stragglers
+PAGES.length=0;order.forEach(pg=>PAGES.push(pg));
+const grpOf={};GRP.forEach(([name,ids])=>ids.forEach(id=>grpOf[id]=name));
+let lastGrp=null;
+PAGES.forEach((pg,i)=>{
+  const page=el('div','page'+(i===0?' active':''));page.id='pg-'+pg.id;
+  stage.appendChild(page);pg.el=page;pg.build(page);
+  const g=grpOf[pg.id]||'MORE';
+  if(g!==lastGrp){lastGrp=g;const hdr=el('div','rgrp',g);rail.appendChild(hdr);}
+  const ic=el('div','ric'+(i===0?' sel':''),pg.icon+`<div class="lbl">${pg.label}</div>`);
+  ic.onclick=()=>select(i);rail.appendChild(ic);
+});
+function select(i){const _prev=PAGES[activeIdx];if(_prev&&_prev.el.onHide)try{_prev.el.onHide();}catch(e){}
+  activeIdx=i;
+  PAGES.forEach((pg,j)=>pg.el.classList.toggle('active',j===i));
+  [...rail.children].forEach((c,j)=>c.classList.toggle('sel',j===i));
+  pop.style.display='none';
+  const cur=PAGES[i].el; if(cur.onShow)try{cur.onShow();}catch(e){}
+}
+
+/* master render loop */
+function loop(){pollAudio();motionTick();
+  const ab=$('#armBtn');if(ab)ab.classList.toggle('armed',S.camRunning||S.audioReady===true||S.headingOK||!!S.mag||!!S.pos);
+  const pg=PAGES[activeIdx];if(pg&&pg.el.draw)try{pg.el.draw();}catch(e){}
+  requestAnimationFrame(loop);}
+requestAnimationFrame(loop);
+
+/* first-touch unlock for audio/sensors (mobile autoplay policy) */
+let armed=false;
+function armOnce(){if(armed)return;armed=true;initMotion();}  // light touch; full prompts come from ARM
+document.addEventListener('pointerdown',armOnce,{once:true});
+window.addEventListener('freqchange',()=>{});
+
+/* boot */
+BRIDGE.init();
+initMedID();const _med=$('#medBtn');if(_med)_med.onclick=openMedID;
+initHelp();const _help=$('#helpBtn');if(_help)_help.onclick=openHelp;
+const _arm=$('#armBtn');if(_arm)_arm.onclick=()=>armAll();
+setTimeout(()=>toast('ALLALONE online · tap ◉ ARM ALL to grant camera · mic · motion',3800),400);
+</script>
+</body>
+</html>
