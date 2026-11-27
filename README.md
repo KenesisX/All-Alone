@@ -1,3 +1,7 @@
+go here --------->
+online: https://kenesisx.github.io/All-Alone/
+
+
 # ALLALONE — Windows (.exe)
 
 Electron wrapper around the ALLALONE web app. Builds an installer (`.exe`)
